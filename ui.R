@@ -107,16 +107,67 @@ ui <- tagList(
                                       ),
                               h3("Contact us", align="center"), 
                               tags$div(class = 'paragraph',align = "center", tags$hr(),
-                                       tags$p("Please contact us if you have any questions at", align="center", 
-                                              tags$a(href="mailto:datascience@colgate.edu", "datascience@colgate.edu."))), 
+                                       tags$p("Please contact us if you have any questions at ", align="center", 
+                                              br(),
+                                              tags$a(href="mailto:lcambisaca@colgate.edu", "lcambisaca@colgate.edu."),
+                                              tags$a(href="mailto:tlanuza@colgate.edu", "tlanuza@colgate.edu.")
+                                             )
+                                      ), 
                               br(), br(), br()
-                                  
-                                       
+                     ),
+                     tabPanel("Tutorial",
+                              tabsetPanel(id = "Examples", # Basically creates a subset of tabs inside a page
+                                          tabPanel("Example 1",
+                                                   h1("Example 1", align = "center"),
+                                          
+                                                   tags$div(class = "paragraph", tags$hr(),
+                                                            p("Within the regression app, we provide data collected on a representative sample of n=558 White Americans by Cooley et al. (2022). The researchers aimed to assess whether beliefs that White people are poor are associated with the humanization of welfare recipients among White Americans who feel intergroup status threat—namely, those high in racial zero-sum beliefs."),
+                                                            p("If this were the case, it would suggest that the link between White-poor beliefs, the humanization of welfare recipients, and welfare policy support may be motivated by a desire to preserve the racial status quo.")
+                                                            ),
+                                                   
+                                                   tags$div(class = "paragraph", 
+                                                            p("The researchers used perceived agency of welfare recipients as a measure of humanization, and they wanted to evaluate whether White-poor and racial zero-sum beliefs affect this perception by controlling for education, income, political affiliation (Democrat or not) and their beliefs that Black people are poor."),
+                                                            p("Specifically, they hypothesized that the association between White-poor beliefs and the humanization of welfare recipients would be stronger among white Americans who also had higher racial zero-sum beliefs, indicating that an interaction term is necessary."),
+                                                            tags$hr(),
+                                                            wellPanel(strong("Zagency ~ ZWpoor*Zzerosum + Zedu + Zincome + Democrat + ZBpoor"))
+                                                            ),
+                                                   
+                                                   tags$div(class = "paragraph",  tags$hr(),
+                                                            p("The data are quite noisy, and we can see that some variables are discrete. We see that the perceived agency of welfare recipients (humanization) is positively correlated with beliefs that White people are poor, beliefs that Black people are poor, and negatively correlated with zero-sum beliefs. Further, we can see that the perceived agency of welfare recipients (humanization) appears to be more prominent among Democrats than non-democrats."),
+                                                            p("While these findings provide some insight toward our research question, they are zero-order, meaning we look at the pairs of correlations independently without considering how all the explanatory variables work together."),
+                                                            tags$hr()
+                                                            ),
+                                                   # HTML('<center><img src="ex1-datasummary.png"></center>'),
+                
+                                              
+                                                   ),
+                                          tabPanel("Example 2")
+                              ) # acts as a contained for multiple tabPanel()
+                     ),
+                     tabPanel("Dataset & Model",
+                              sidebarPanel( # Handels Data and settings
+                                fileInput("file_upload", "Upload a File", accept=c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
+                                actionButton("sample", "Sample Data")
+                                
+                                
+                                
+                              ),
+                              mainPanel( # Presnets results
+                                
+                              )
+                              
+                              ),
+                     tabPanel("Refrences"
                               
                               
-                              
-                      ),
-                      tabPanel("Dataset & Model", "This is where the math happens")
+                              )
+                   
+                     
+
+                     
+                     
           ) # End of navbarPage
+          
+          
 )
           
