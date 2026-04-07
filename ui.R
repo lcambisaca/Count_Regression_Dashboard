@@ -88,23 +88,31 @@ ui <- tagList(
                               h1("Count Regression" , align = "center"), br(),
                               h3("What is Count Regression?", align = "center"),
                               tags$div(class = 'paragraph',align = "center", tags$hr(),
-                                       tags$p("1. Basically its Shaw"),
-                                       tags$p("2. adino"),
-                                       tags$p("1. idk"),
-                                       tags$p("2. idk2")
+                                       p("Count Regression is a statistical tool by which explanatory variables are used to estimate a discrete count of occurances of an event. The resulting model can be used to evaluate hypothesis about the relationships and make inferences, given that certain conditions are satisified."),
+                                       tags$p("1. The observations collected are representateive of the population of interest and are independent of one another."),
+                                       tags$p("2. The variable of interest is a count-response variable."),
+                                       tags$p("3. The relationship between the predictors and the log-mean is linear."),
+                                       tags$p("4. Ideally, at least 10-20 events per predictor variable."),
+                                       tags$p("5. For zero-inflated versions, there is a mixed process generating 0s and counts."),
+                                       tags$p("6. For zero-inflated versions, the relationship between the predictors and log-odds is linear for the logistic portion."),
+                                       tags$p("7. Little to no (multi)collinearity.")
                                        
                                    
                                       ),
                               h3("How to use this app?", align="center"), 
-                              tags$div(class = 'paragraph',tags$hr(),
-                                      p("Step1"),
-                                      wellPanel(strong("response_name ~ explanatory_1_name + explanatory_2_name + ... + explanatory_k_name")),
-                                      
-                                      
-                                      
-                                      
-                                      
-                                      ),
+                              tags$div(class = "paragraph", tags$hr(),
+                                       p("Step 1: To use this app, go to the 'Dataset & Model' tab and upload your .csv type dataset, or select a sample dataset."), 
+                                       p("Step 2: Fit your model by inputting your desired regression equation in the form:"),
+                                       wellPanel(strong("response_name ~ explanatory_1_name + explanatory_2_name + ... + explanatory_k_name")),
+                                       p("Designate interaction terms using the * or : symbol between the two variable names. Using the asterisk will include both variables and their interaction (recommended), whereas the colon will only include the interaction. For example, an interaction between explanatory variable 1 and 2 can be specified as follows."),
+                                       wellPanel(strong("response_name ~ explanatory_1_name * explanatory_2_name + ... + explanatory_k_name")),
+                                       wellPanel(strong("response_name ~ explanatory_1_name : explanatory_2_name + ... + explanatory_k_name")),
+                                       p("Step 3: You can visualize the data and see a summary of the different variables in the "), 
+                                       p("Step 4: You can check the assumptions provided in the 'Assumptions' tab. We recommend assessing assumptions visually using the provided graphical summary and confirming using the numerical summaries. The app will provide a histogram of the residuals, a randomized quantile residual plot, and a qq-plot with the dispersion ratio for the selected regression type. For non-zero inflated models, a zero-inflation assessment will also be provided. Warnings or notices will be provided based on the output within these charts."), 
+                                       p("Step 5: You can check the effect of outlying, influential, or leverage points in the 'Outliers' tab. Many models exhibit some influential points and researchers should ensure that the results of their model hold when using a robust regression model."), #NOTE: May need to change this depending on what we want to show
+                                       p("Step 6: A table will be provided detailing the results of a linear model test or a Vuong test, depending on the models being compared."),
+                                       p("Step 7: The resulting model and interpretation of key values can be found in the 'Interpretation' tab"),
+                                       p("Step 8 (Optional): If your model has an interaction, the appropriate analyses will be reported in the 'Interaction' tab.")),
                               h3("Contact us", align="center"), 
                               tags$div(class = 'paragraph',align = "center", tags$hr(),
                                        tags$p("Please contact us if you have any questions at ", align="center", 
