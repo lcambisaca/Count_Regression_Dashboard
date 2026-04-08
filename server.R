@@ -315,7 +315,7 @@ server <- (function(input, output, session){
         library(palmerpenguins)
         dat<-data.frame(penguins)
       }else if(input$sample_data_choice=="Bracht et al. MFAP4" ){
-        dat<-read.csv("www/mfap4.csv")%>%
+        dat<-read.csv("www/BrachtMFAP4Data.csv")%>%
           mutate(Age=as.numeric(Age))
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
@@ -680,7 +680,7 @@ server <- (function(input, output, session){
         library(palmerpenguins)
         dat<-data.frame(penguins)
       }else if(input$sample_data_choice=="Bracht et al. MFAP4" ){
-        dat<-read.csv("www/mfap4.csv")%>%
+        dat<-read.csv("www/BrachtMFAP4Data.csv")%>%
           mutate(Age=as.numeric(Age))
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
