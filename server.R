@@ -71,6 +71,7 @@ server <- (function(input, output, session){
   shinyjs::hide("log_button")
   shinyjs::hide("lp1_button")
   
+  #These are tabs for dataset portion
   hideTab(inputId="workPanel", target="summary")
   hideTab(inputId="workPanel", target="assumptions")
   hideTab(inputId="workPanel", target="checks")
@@ -82,7 +83,7 @@ server <- (function(input, output, session){
   ##############################################
   # PROCESS UPLOADED DATA
   ##############################################
-  upload_data<-reactive({
+  upload_data<-reactive({ # when function is called it now run
     req(input$file_upload) # this connects to file input in ui and makes it so we pause our code here until we add a file
     tryCatch({
       dat <- read.csv(input$file_upload$datapath)},
@@ -104,8 +105,8 @@ server <- (function(input, output, session){
   ##############################################
   # DATASET PREVIEW
   ##############################################
-  output$preview.data <- DT::renderDataTable({
-    if(globalVars$sample){
+  output$preview.data <- DT::renderDataTable({ # this gets called from ui when we want to render dataset e.r call oreview
+    if(globalVars$sample){ #Edit this for sample data
       filename <- case_when(input$sample_data_choice=="Bracht et al. MFAP4"                             ~ "BrachtMFAP4Data",
                             input$sample_data_choice=="Palmer Penguins"                                 ~ "PalmerPenguin",
                             input$sample_data_choice=="U.S. News College Data"                          ~ "College",
@@ -129,15 +130,15 @@ server <- (function(input, output, session){
   #############################################################################################
   # When data is uploaded -- preview data and clear everything else
   #############################################################################################
-  observeEvent(input$file_upload,{
+  observeEvent(input$file_upload,{ # check to see if this specefic var gets changed this occurs first
     globalVars$changed.input <- TRUE
     #upload data and preview
-    inFile <<-upload_data()
+    inFile <<- upload_data() # saved to global var
     #clear everything else
     hideInteractionInput()
     
     #UI resets
-    updateTabsetPanel(session, "workPanel", selected = "Data Preview")
+    updateTabsetPanel(session, "workPanel", selected = "Data Preview") # This function updates a specific tabset depending on id
     globalVars$model <- NULL
     shinyjs::show("select_factors")
     uncheckAllAssumptions()
@@ -145,6 +146,10 @@ server <- (function(input, output, session){
     updateCheckboxInput(session, "scalevars", value = FALSE)
     
   })
+  
+  # metaExpr acts as a Script Recorder it allows us to remeber the line code we used to execute our script
+  # in this case a specefic part. So with this were getting the actual data fra,e and code that implemented it
+  # reactive focuses on output # meta reactive focus on process
   
   read_data <- metaReactive2({
     if(globalVars$sample){
@@ -243,6 +248,97 @@ server <- (function(input, output, session){
     updateCheckboxInput(session, "check_4", value = FALSE)
     
     updateCheckboxInput(session, "interaction.error", value = TRUE)
+  }
+  
+  ##############################################################
+  # When sample data os loaded (Tom look of sample is good or bad and make adjustements as needed)
+  ##############################################################
+  
+  
+  observeEvent(input$sample,{
+    globalVars$changed.input <- TRUE
+    updateTabsetPanel(session, "workPanel", selected = "data")
+    globalVars$model <- NULL
+    hideAllTabs()
+    hideInteractionInput()
+    uncheckAllAssumptions()
+    emptyEquation()
+    
+    
+    if(!globalVars$sample){
+      globalVars$sample <- TRUE
+      globalVars$dataset <- NULL
+      shinyjs::hide("file_upload")
+      shinyjs::show("choose_sample") # looks for id in ui
+      shinyjs::show("select_factors")
+      
+      if(input$sample_data_choice=="Palmer Penguins"){
+        library(palmerpenguins)
+        dat<-data.frame(penguins)
+      }else if(input$sample_data_choice=="Bracht et al. MFAP4" ){
+        dat<-read.csv("www/mfap4.csv")%>%
+          mutate(Age=as.numeric(Age))
+      }else if(input$sample_data_choice=="U.S. News College Data"){
+        library(ISLR)
+        dat<-College
+      }else if(input$sample_data_choice=="Cooley's Poor Beliefs Data"){
+        dat<-read.csv("www/poorbeliefs.csv") %>% mutate(Democrat = factor(Democrat))
+      }
+      # basic data fix stuff
+      globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
+        mutate_if(is.integer,as.numeric)    
+      globalVars$dataset.original <- dat %>% mutate_if(is.character,as.factor)%>%
+        mutate_if(is.integer,as.numeric)
+      
+      updateActionButton(session, "sample", label = "<- Back")
+      updateFactorsSelectize()
+      
+    } else {
+      globalVars$sample <- FALSE
+      globalVars$dataset <- NULL
+      shinyjs::show("file_upload")
+      shinyjs::hide("choose_sample")
+      
+      if(!is.null(input$file_upload)){
+        inFile <<- upload_data() # Weird this is used
+        shinyjs::show("select_factors")
+        updateFactorsSelectize()
+        
+      }else{
+        shinyjs::hide("select_factors")
+        globalVars$dataset <- NULL
+        globalVars$dataset.original <- NULL
+        globalVars$fcts <- NULL
+        updateSelectizeInput(session, "select_factors",
+                             "Specify Categorical Variables in the Data:",
+                             choices = c(""),
+                             selected = NULL)
+      }
+      updateActionButton(session, "sample", label = "Sample Data")
+    }
+                  
+                  
+                  
+                  
+                  
+                  
+                  
+                  
+                  
+                  
+                  
+  })
+  
+  
+  hideAllTabs <- function(){
+    updateTabsetPanel(session, "workPanel", selected="data")
+    
+    hideTab(inputId="workPanel", target="summary")
+    hideTab(inputId="workPanel", target="assumptions")
+    hideTab(inputId="workPanel", target="checks")
+    hideTab(inputId="workPanel", target="anova")
+    hideTab(inputId="workPanel", target="interpretation")
+    hideTab(inputId="workPanel", target="interaction")
   }
   
   
