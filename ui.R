@@ -155,12 +155,12 @@ ui <- tagList(
                               ) # acts as a contained for multiple tabPanel()
                      ),
                      tabPanel("Dataset & Model",
-                              sidebarPanel( # Handles Data and settings
+                              sidebarPanel( # Handels Data and settings
                                 fileInput("file_upload", "Upload a File", accept=c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
                                 actionButton("sample", "Sample Data"),
                                 hidden(div(id='choose_sample', #div is a box
                                            selectInput("sample_data_choice","Sample Data:",
-                                                       choices = c("Cooley's Poor Beliefs Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data", "McMillan Ache Monkey"),
+                                                       choices = c("Cooley's Poor Beliefs Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data", "Lai et al. Tree Data", "Lai et al. Schima Superba", "Loven et al. Road Weather Data"),
                                                        selected = "U.S. News College Data"))),
                                 tags$hr(),
                                 hidden(selectizeInput("select_factors",
@@ -199,7 +199,26 @@ ui <- tagList(
                                 tabsetPanel(id = "workPanel",
                                             tabPanel("Data Preview", br(), value="data", #Value allows us to pick whats data
                                                      shinycssloaders::withSpinner(DT::dataTableOutput("preview.data"))),
-                                            tabPanel("Data Summary", value = "summary"),
+                                            tabPanel("Data Summary", value = "summary",
+                                                     fluidPage(
+                                                       h1("Pairwise Plots", align = "center"), br(),
+                                                                
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                     ),
+                                                     tags$hr(),
+                                                     br(),
+                                                     h1("Correlation Matrix", align = "center"), br()
+                                                     
+                                                     
+                                                     
+                                                     
+                                                     
+                                                     ),
                                             tabPanel("Assumptions", value = "assumptions"),
                                             tabPanel("Outliers", value = "checks"),
                                             tabPanel("Plots", value = "plot")
