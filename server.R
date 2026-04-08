@@ -251,7 +251,7 @@ server <- (function(input, output, session){
   }
   
   ##############################################################
-  # When sample data os loaded (Tom look of sample is good or bad and make adjustements as needed)
+  # When sample data os loaded (Tom look if sample is good or bad and make adjustments as needed)
   ##############################################################
   
   
@@ -283,6 +283,8 @@ server <- (function(input, output, session){
         dat<-College
       }else if(input$sample_data_choice=="Cooley's Poor Beliefs Data"){
         dat<-read.csv("www/poorbeliefs.csv") %>% mutate(Democrat = factor(Democrat))
+      }else if(input$sample_data_choice=="McMillan Ache Monkey"){
+        dat<-read.csv("www/McMillanAcheMonkey.csv")
       }
       # basic data fix stuff
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
