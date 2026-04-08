@@ -155,7 +155,7 @@ ui <- tagList(
                               ) # acts as a contained for multiple tabPanel()
                      ),
                      tabPanel("Dataset & Model",
-                              sidebarPanel( # Handels Data and settings
+                              sidebarPanel( # Handles Data and settings
                                 fileInput("file_upload", "Upload a File", accept=c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
                                 actionButton("sample", "Sample Data"),
                                 hidden(div(id='choose_sample', #div is a box
