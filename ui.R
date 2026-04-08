@@ -73,6 +73,8 @@ ui <- tagList(
           tags$style(HTML("#asmp_4note {font-size:12px;}")),
           tags$style(HTML("#check_note {font-size:12px;}")),
           tags$style(HTML("#asmp_note {font-size:12px;}")),
+          tags$style(type="text/css", ".selectize-input{overflow: auto;}"), # this fixes overflow in selectize
+          
           
           #Whats br line break
           # whats id
@@ -155,12 +157,77 @@ ui <- tagList(
                      tabPanel("Dataset & Model",
                               sidebarPanel( # Handels Data and settings
                                 fileInput("file_upload", "Upload a File", accept=c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
-                                actionButton("sample", "Sample Data")
+                                actionButton("sample", "Sample Data"),
+                                hidden(div(id='choose_sample', #div is a box
+                                           selectInput("sample_data_choice","Sample Data:",
+                                                       choices = c("Cooley's Poor Beliefs Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data", "Lai et al. Tree Data", "Lai et al. Schima Superba", "Loven et al. Road Weather Data"),
+                                                       selected = "U.S. News College Data"))),
+                                tags$hr(),
+                                hidden(selectizeInput("select_factors",
+                                                      "Specify Categorical Variables in the Data:",
+                                                      choices = NULL,
+                                                      selected = NULL,
+                                                      multiple = TRUE)),
+                                
+                                #From here down not set up
+                                textInput("equation", "Enter your desired regression equation:"),
+                                bsTooltip("equation", "Example: response ~ explanatory_1 + explanatory_2 + ... + explanatory_k",
+                                          "right", trigger = "hover", options = list(container = "body")), #helpful will need to adjuts for ZIP
+                                checkboxInput("scalevars", "Scale all variables (standardize)", FALSE), #need to see if user wabrs to scale and do so if yes need to implement
+                                numericInput("alpha", "Significance level (\u03B1): ", value = 0.05, step = 0.001, min = 0, max = 1),     # alpha level need to adjust if user wants to
+                                div(class = "text-center", actionButton("DoCompute", "Compute Model Output")), #DoCompute id for button
+                                div(h3("Interaction Analysis:"), id="interaction_analysis"),
+                                selectizeInput("var_inter",
+                                               "Select Interaction",
+                                               choices = c("None"),
+                                               selected = "None",
+                                               multiple = FALSE),
+                                
+                                selectizeInput("var_moderator",
+                                               "Select Moderator",
+                                               choices = c("Select..."),
+                                               selected = "Select...",
+                                               multiple = FALSE),
+                                hidden(checkboxInput("interaction.error", "Error Ribbon for Interaction", TRUE)),
+                              
                                 
                                 
                                 
+              
                               ),
-                              mainPanel( # Presnets results
+                              mainPanel( # Presnets results #value = "---" is internal ID for tab
+                                tabsetPanel(id = "workPanel",
+                                            tabPanel("Data Preview", br(), value="data", #Value allows us to pick whats data
+                                                     shinycssloaders::withSpinner(DT::dataTableOutput("preview.data"))),
+                                            tabPanel("Data Summary", value = "summary",
+                                                     fluidPage(
+                                                       h1("Pairwise Plots", align = "center"), br(),
+                                                                
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                     ),
+                                                     tags$hr(),
+                                                     br(),
+                                                     h1("Correlation Matrix", align = "center"), br()
+                                                     
+                                                     
+                                                     
+                                                     
+                                                     
+                                                     ),
+                                            tabPanel("Assumptions", value = "assumptions"),
+                                            tabPanel("Outliers", value = "checks"),
+                                            tabPanel("Plots", value = "plot")
+                                            
+                                                     
+                                          
+                                            
+                                            
+                                            )
                                 
                               )
                               
