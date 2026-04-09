@@ -39,7 +39,7 @@ server <- (function(input, output, session){
   
   globalVars$make_anova_num <- NULL
   globalVars$make_model_summary <- NULL
-
+  
   globalVars$mod.emtrendcontrast <- NULL
   globalVars$make_interaction_emtrendscontrast_table <- NULL              
   globalVars$prepare_interaction_emtrendscontrast_interp <- NULL              
@@ -110,7 +110,7 @@ server <- (function(input, output, session){
       filename <- case_when(input$sample_data_choice=="Bracht et al. MFAP4"                             ~ "BrachtMFAP4Data",
                             input$sample_data_choice=="Palmer Penguins"                                 ~ "PalmerPenguin",
                             input$sample_data_choice=="U.S. News College Data"                          ~ "College",
-                            input$sample_data_choice=="Cooley's Poor Beliefs Data"                      ~ "poorbeliefs"
+                            input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data",
       )
       
       DT::datatable(
@@ -171,11 +171,12 @@ server <- (function(input, output, session){
           library(ISLR)
           dat<-College
         })
-      }else if(input$sample_data_choice=="Cooley's Poor Beliefs Data"){
+      }else if(input$sample_data_choice=="Camera Data"){
         metaExpr({
-          dat<-read_csv("poorbeliefs.csv") %>% mutate(Democrat = factor(Democrat))
+          dat<-read_csv("cs_replication_data.csv")
         })
       }
+      
     }else{
       metaExpr({
         quote(dat <- read_csv(..(input$file_upload$name)))
@@ -211,7 +212,7 @@ server <- (function(input, output, session){
   }
   
   
-
+  
   hideAllTabs <- function(){
     updateTabsetPanel(session, "workPanel", selected="data")
     
@@ -232,7 +233,7 @@ server <- (function(input, output, session){
   }
   
   
-
+  
   hideInteractionInput <- function(){
     shinyjs::hide("interaction_analysis")
     shinyjs::hide("var_inter")
@@ -315,13 +316,13 @@ server <- (function(input, output, session){
         library(palmerpenguins)
         dat<-data.frame(penguins)
       }else if(input$sample_data_choice=="Bracht et al. MFAP4" ){
-        dat<-read.csv("www/mfap4.csv")%>%
+        dat<-read.csv("www/BrachtMFAP4Data.csv")%>%
           mutate(Age=as.numeric(Age))
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
         dat<-College
-      }else if(input$sample_data_choice=="Cooley's Poor Beliefs Data"){
-        dat<-read.csv("www/poorbeliefs.csv") %>% mutate(Democrat = factor(Democrat))
+      }else if(input$sample_data_choice=="Camera Data"){
+        dat<-read.csv("www/cs_replication_data.csv")
       }
       # basic data fix stuff
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
@@ -355,8 +356,8 @@ server <- (function(input, output, session){
       }
       updateActionButton(session, "sample", label = "Sample Data")
     }
-                  
-                  
+    
+    
   })
   
   
@@ -372,7 +373,7 @@ server <- (function(input, output, session){
     return(numNAs_new == numNAs) 
     # If the number of NAs stayed the same, it means everything in that column was successfully turned into a number. The function returns TRUE.
     # overall checks if col can be classified as a numerical number
-    }
+  }
   
   
   observeEvent(input$select_factors,{ # Whole point of this is to update data to speciefy which ones are what, I want to also add fact and numerical ontop of each header in future
@@ -680,19 +681,13 @@ server <- (function(input, output, session){
         library(palmerpenguins)
         dat<-data.frame(penguins)
       }else if(input$sample_data_choice=="Bracht et al. MFAP4" ){
-        dat<-read.csv("www/mfap4.csv")%>%
+        dat<-read.csv("www/BrachtMFAP4Data.csv")%>%
           mutate(Age=as.numeric(Age))
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
         dat<-College
-      }else if(input$sample_data_choice=="Cooley's Poor Beliefs Data"){
-        dat<-read.csv("www/poorbeliefs.csv") %>% mutate(Democrat = factor(Democrat))
-      } else if(input$sample_data_choice=="Lai et al. Tree Data"){
-        dat<-read.csv("www/LaiTreeData.csv") %>% mutate(sp = factor(sp))
-      } else if(input$sample_data_choice=="Lai et al. Schima Superba"){
-        dat<-read.csv("www/LaiTreeData-SS.csv") %>% mutate(sp = factor(sp))
-      } else if(input$sample_data_choice=="Loven et al. Road Weather Data"){
-        dat<-read.csv("www/HalikkoAsphalt.csv") %>% mutate(RoadState = factor(RoadState))
+      }else if(input$sample_data_choice=="Camera Data" ){
+        dat<-read.csv("www/cs_replication_data.csv")
       }
       shinyjs::show("select_factors")
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
@@ -768,7 +763,7 @@ server <- (function(input, output, session){
     return(run)
   }
   
-
+  
   #############################################################################################
   # When a new sample selected
   #############################################################################################
@@ -797,15 +792,22 @@ server <- (function(input, output, session){
     if(globalVars$changed.input){
       run <- checkEquationValidity()
       
-      # Fit Model if we have an equation
+      
+      
       if(run){
+       # print(head(globalVars$dataset)) # Shows the first 6 rows
+        
+        
         # Try to fit model
         model <- tryCatch({
-          model<-lm((as.formula(globalVars$equation)), data=dat)
+          
+          model<-lm((as.formula(globalVars$equation)), data=globalVars$dataset)
+          
           # Change the call to have the full formula -- this is imporant for later. It is usually unnecessary but it is important
           # for the emmeans code -- this is how it checks whether a log transformation was used.
-          model$call <- str2lang(paste("lm(formula=",globalVars$equation, ",data=globalVars$dataset)"))
-          model 
+          model$call <- str2lang(paste0("lm(formula=",globalVars$equation, ",data=globalVars$dataset)"))
+
+          model
         }, error = function(e){
           #
           if(grepl(pattern = "Error in eval(predvars, data, env): object", x = e, fixed = T)){
@@ -840,6 +842,22 @@ server <- (function(input, output, session){
         })
         
         
+        
+        # 1. Check if model is NULL first
+        if (is.null(model)) {
+          print("DEBUG: Model object is NULL!")
+          return(NULL)
+        }
+        
+        # 2. Check if it actually has 'terms' (what model.matrix needs)
+        if (is.null(terms(model))) {
+          print("DEBUG: Object exists but has no 'terms'. It might not be a fitted model.")
+          return(NULL)
+        }
+        
+        model_matrix <- model.matrix(model)
+        
+        
         # Check the rank of the model matrix < number of predictors?
         model_matrix <- model.matrix(model)
         if(qr(model_matrix)$rank < (ncol(model_matrix))){
@@ -850,152 +868,36 @@ server <- (function(input, output, session){
         if(!("lm" %in% class(model))){
           run <- FALSE
         }
+        
       }
       
-      # Fit remaining analyses if the model was fit
+      
+      
+      
+      
       if(run){
-        
         showModal(modalDialog("Things are happening in the background!", footer=NULL))
-        
-        # model pieces
         globalVars$model <- model
-        globalVars$modelsummary <- prepare_model_summary()
-        globalVars$prepare_model_interp <- prepare_model_interp()
-        
-        globalVars$anova <- prepare_anova()
-        globalVars$prepare_anova_interp <- prepare_anova_interp()
-        
-        ### Show factor outputs, if necessary
-        fct.vars <- names(which(attr(model$terms, "dataClasses")=="factor"))
-        if(length(fct.vars)>=1){
-          globalVars$anova_fctcomp <- prepare_anova_fctcomp()
-          globalVars$make_anovafctcomp_plot <- make_anovafctcomp_plot()
-          globalVars$make_anovafctcomp_num <- make_anovafctcomp_num()
-          globalVars$prepare_anova_fctcompinterp <- prepare_anova_fctcompinterp()
-          shinyjs::show("anova_fctcomp")
-        }else{
-          shinyjs::hide("anova_fctcomp")
-        }
-        
-        #plots and summaries to make
-        globalVars$make_ggpairs_plot <- make_ggpairs_plot()
-        globalVars$make_ggpairs_summary <- make_ggpairs_summary()
-        
-        globalVars$make_assumptions_plot <- tryCatch({
-          make_assumptions_plot()
-        }, error = function(e) {
-          shinyalert("Error!", text = "There was an issue calculating the residuals for your model. Perhaps one of your categorical variables is too sparse and must be removed from the data first.", type = "error")
-          NULL
-        })
-        
-        #check if there is a numeric variable to run VIF
-        if(length(attr(model$terms, "term.labels"))>=2){
-          globalVars$make_vif_num <- make_vif_num()  
-        }
-        
-        globalVars$make_check_plot <- make_check_plot()
-        globalVars$make_anova_num <- make_anova_num()
-        globalVars$make_model_summary <- make_model_summary()
-        
-        # Show output tabs
-        showAllTabs()
-        updateTabsetPanel(session, "workPanel", selected = "summary")
+        globalVars$modelsummary <- 1+1  # need to implement her NOTE:
         
         
-        ### Show interaction outputs, if necessary
-        if((grepl("[*]", globalVars$equation))){
-          # for any model with an interaction
-          shinyjs::show("marginaleffectsdiv")
-          globalVars$modelmargins <- prepare_model_margins()
-          globalVars$make_margins_summary <- make_margins_summary()
-          globalVars$prepare_margins_interp <- prepare_margins_interp()
-          
-          # Extract Regression Terms
-          terms <- attr(terms(model), "term.labels")
-          # What are the two-way interactions?
-          possible.ints <- terms[str_count(string=terms, pattern=":")==1]
-          # What are the 3+-way interactions?
-          bigger.ints <- terms[str_count(string=terms, pattern=":") > 1]
-          
-          if(length(possible.ints)==0){
-            ints.to.select <- c("None")
-          } else if(length(bigger.ints)==0){
-            ints.to.select <- c(possible.ints)
-          }else{
-            ints.to.select <- c()
-            # For each two-way
-            for(int in possible.ints){
-              # get the variables in the two way interaction
-              curr.vars <- c(str_split(string=int, pattern=":", simplify = T))
-              # now, check if it is part of a higher-order interaction
-              include=TRUE
-              for(bigger.int in bigger.ints){
-                # get the variables in the bigger interaction
-                curr.big.vars <- c(str_split(string=bigger.int, pattern=":", simplify = T))  
-                # are all two-way interaction variables in the higher-order interaction?
-                if(all(curr.vars %in% curr.big.vars)){
-                  # if not, it stops at a two-way interaction and we can deal with it.
-                  include=FALSE
-                }
-              }
-              if(include){
-                ints.to.select <- c(ints.to.select, int)
-              }
-            }  
-          }
-          if(length(ints.to.select)>0){
-            globalVars$interactions = ints.to.select
-            showInteractionInput()
-            updateInteractionSelect()
-          }
-          else{
-            globalVars$interactions = ints.to.select
-            hideInteractionInput()
-          }
-          # # interaction untangling pieces (moderator specified)
-          # if((input$var_inter!="None" & input$var_moderator!="Select...")){
-          #   globalVars$emmeans <- prepare_interaction_emmeans()
-          #   globalVars$mod.emmeanscontrast <- prepare_interaction_emmeanscontrasts()
-          #   globalVars$mod.emtrends <- prepare_interaction_emtrends()
-          #   if(!is.null(globalVars$mod.emtrends)){
-          #     globalVars$mod.emtrendcontrast <- prepare_interaction_emtcontrast()
-          #     globalVars$make_interaction_emtrendscontrast_table <- make_interaction_emtrendscontrast_table()
-          #     globalVars$prepare_interaction_emtrendscontrast_interp <- prepare_interaction_emtrendscontrast_interp()
-          #     globalVars$make_interaction_emtrends_tab <- make_interaction_emtrends_tab()
-          #     globalVars$prepare_interaction_emtrends_interp <- prepare_interaction_emtrends_interp()
-          #   }
-          #   globalVars$make_interaction_emmeans_tab <- make_interaction_emmeans_tab()
-          #   globalVars$prepare_interaction_emmeans_interp <- prepare_interaction_emmeans_interp()
-          #   globalVars$make_interaction_contrasts_tab <- make_interaction_contrasts_tab()
-          #   globalVars$prepare_interaction_emmeanscontrast_interp <- prepare_interaction_emmeanscontrast_interp()
-          #   globalVars$ggemmeansplot <- ggemmeansplot()
-          #   globalVars$jnplot <- jnplot()
-          #   globalVars$prepare_jn_int <- prepare_jn_int()
-          #   showTab(inputId="workPanel", target="interaction")
-          # }else{
-          #   hideTab(inputId="workPanel", target="interaction")
-          # }
-        }else{# no interaction
-          shinyjs::hide("marginaleffectsdiv")
-          hideTab(inputId="workPanel", target="interaction")
-        }
         
-        # toggle collinearity assumption
-        if(length(attr(model$terms, "term.labels"))<2){
-          shinyjs::hide('asmp_4')
-          shinyjs::hide('asmp_4note') 
-        }else{
-          shinyjs::show('asmp_4')
-        }
-        removeModal()
         
-        # Hide tabs and do nothing further if model is not fit
-        globalVars$changed.input <-FALSE
-      }else{
-        globalVars$model <- NULL
-        hideAllTabs()
+        
+        
+        
+        
+        
       }
       
+      
+      
+      
+      
+      
+      # Fit Model if we have an equation
+      
+
     }
     else{
       shinyalert("Warning!", 
@@ -1008,6 +910,6 @@ server <- (function(input, output, session){
   # From here we might be by ourselves
   
   
-
- }
+  
+}
 )
