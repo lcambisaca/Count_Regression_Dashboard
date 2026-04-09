@@ -110,7 +110,7 @@ server <- (function(input, output, session){
       filename <- case_when(input$sample_data_choice=="Bracht et al. MFAP4"                             ~ "BrachtMFAP4Data",
                             input$sample_data_choice=="Palmer Penguins"                                 ~ "PalmerPenguin",
                             input$sample_data_choice=="U.S. News College Data"                          ~ "College",
-                            input$sample_data_choice=="Cooley's Poor Beliefs Data"                      ~ "poorbeliefs"
+                            input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data",
       )
       
       DT::datatable(
@@ -171,11 +171,12 @@ server <- (function(input, output, session){
           library(ISLR)
           dat<-College
         })
-      }else if(input$sample_data_choice=="Cooley's Poor Beliefs Data"){
+      }else if(input$sample_data_choice=="Camera Data"){
         metaExpr({
-          dat<-read_csv("poorbeliefs.csv") %>% mutate(Democrat = factor(Democrat))
+          dat<-read_csv("cs_replication_data.csv")
         })
       }
+      
     }else{
       metaExpr({
         quote(dat <- read_csv(..(input$file_upload$name)))
@@ -320,8 +321,8 @@ server <- (function(input, output, session){
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
         dat<-College
-      }else if(input$sample_data_choice=="Cooley's Poor Beliefs Data"){
-        dat<-read.csv("www/poorbeliefs.csv") %>% mutate(Democrat = factor(Democrat))
+      }else if(input$sample_data_choice=="Camera Data"){
+        dat<-read.csv("www/cs_replication_data.csv")
       }
       # basic data fix stuff
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
@@ -685,14 +686,8 @@ server <- (function(input, output, session){
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
         dat<-College
-      }else if(input$sample_data_choice=="Cooley's Poor Beliefs Data"){
-        dat<-read.csv("www/poorbeliefs.csv") %>% mutate(Democrat = factor(Democrat))
-      } else if(input$sample_data_choice=="Lai et al. Tree Data"){
-        dat<-read.csv("www/LaiTreeData.csv") %>% mutate(sp = factor(sp))
-      } else if(input$sample_data_choice=="Lai et al. Schima Superba"){
-        dat<-read.csv("www/LaiTreeData-SS.csv") %>% mutate(sp = factor(sp))
-      } else if(input$sample_data_choice=="Loven et al. Road Weather Data"){
-        dat<-read.csv("www/HalikkoAsphalt.csv") %>% mutate(RoadState = factor(RoadState))
+      }else if(input$sample_data_choice=="Camera Data" ){
+        dat<-read.csv("www/cs_replication_data.csv")
       }
       shinyjs::show("select_factors")
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
