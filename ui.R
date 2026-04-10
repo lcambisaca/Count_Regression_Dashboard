@@ -202,6 +202,9 @@ ui <- tagList(
                                     tabPanel("Data Summary", value = "summary",
                                              fluidPage(
                                                h1("Pairwise Plots", align = "center"), br(),
+                                               fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(), # Here Tom
+                                               
+                                             
                                                
                                                
                                                

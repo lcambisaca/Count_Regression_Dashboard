@@ -871,31 +871,28 @@ server <- (function(input, output, session){
         
       }
       
-      
+      #         globalVars$modelsummary <- prepare_model_summary()
+
       
       
       
       if(run){
         showModal(modalDialog("Things are happening in the background!", footer=NULL))
         globalVars$model <- model
-        globalVars$modelsummary <- 1+1  # need to implement her NOTE:
         
+        globalVars$modelsummary <- prepare_model_summary()
+        globalVars$make_model_summary <- make_model_summary()
         
+        showAllTabs()
+        updateTabsetPanel(session, "workPanel", selected = "summary")
+        removeModal()
+        # Hide tabs and do nothing further if model is not fit
+        globalVars$changed.input <-FALSE
         
-        
-        
-        
-        
-        
-        
+      }else{
+        globalVars$model <- NULL
+        hideAllTabs()
       }
-      
-      
-      
-      
-      
-      
-      # Fit Model if we have an equation
       
 
     }
@@ -908,6 +905,112 @@ server <- (function(input, output, session){
   })
   
   # From here we might be by ourselves
+  
+  
+  
+  #############################################################################################
+  # Model Summary
+  #############################################################################################
+  prepare_model_summary <- metaReactive2({ 
+    req(globalVars$model)
+    
+    dat <- globalVars$dataset
+    model <- globalVars$model
+    metaExpr({
+      "####################################"
+      "#Summarize Model"
+      "####################################" 
+      mod.sum <- summary(model)
+      
+      "####################################"
+      "# Add Confidence Intervals"
+      "####################################"  
+      mod.table<-cbind(mod.sum$coefficients, na.omit(confint(model)))
+      
+      "####################################"
+      "# Clean Up Labels for Printing"
+      "####################################"
+      mod.classes<-sapply(X = model$model, FUN = class)[-1]
+      mod.classes<-mod.classes[which(mod.classes=="factor")]
+      for(vname in names(mod.classes)){
+        ind <- grepl(x=rownames(mod.table), pattern = vname)
+        ind.int <- grepl(x=rownames(mod.table), pattern = ":")
+        
+        indexes.int<- ind & ind.int
+        indexes <- xor(ind, indexes.int)
+        
+        varval  <- str_remove_all(rownames(mod.table)[indexes], vname)
+        rownames(mod.table)[indexes]<-paste(vname, " = ", varval, sep="")
+        
+        if(any(indexes.int)){
+          for(i in which(indexes.int)){
+            intname <- rownames(mod.table)[i]
+            vname.unique <- str_replace(string = intname, pattern = paste(rownames(mod.table)[(!indexes)&(!ind.int)],collapse ="|"), replacement = "")
+            varval  <- str_remove_all(vname.unique, pattern = vname)
+            varval  <- str_remove_all(varval, pattern = "[:]")
+            
+            rname<-str_remove_all(string = rownames(mod.table)[i], pattern = vname)
+            rname<-str_remove_all(string = rname, pattern = varval)
+            rname<-str_remove_all(string = rname, pattern = "[:]")
+            
+            rownames(mod.table)[i]<- paste(rname," : (",vname, " = ", varval,")", sep="")
+          }
+        }
+      }
+      mod.table <-  data.frame(mod.table) %>% 
+        mutate("Term" = rownames(.)) %>%  # make terms part of table
+        relocate(Term) %>%                # put Term in first column
+        set_rownames(NULL) %>%
+        set_colnames(c("Term", "Estimate", "SE", "t", "p-value", "Lower CI", "Upper CI"))
+    })
+  }, inline=TRUE)
+  
+  make_model_summary <- metaReactive2({
+    
+    req(globalVars$modelsummary)
+    mod.table <- globalVars$modelsummary
+    metaExpr({
+      "####################################"
+      "# Print Summary"
+      "####################################" 
+      mod.table %>% 
+        mutate_if(is.numeric, round, 4) %>%
+        mutate(`p-value` = ifelse(`p-value` < 0.0001, "<0.0001", `p-value`))
+      
+    })
+  }, inline=TRUE)
+  
+  # Render table to UI  
+  output$modsumTab <- DT::renderDataTable({ # Where we named table Tom
+    globalVars$make_model_summary
+  },
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = 
+      list("copy", "print", list(
+        extend = "collection",
+        buttons = list(
+          list(extend="csv", filename="model-summary"),
+          list(extend="excel", filename="model-summary"),
+          list(extend="pdf", filename="model-summary")
+        ),
+        text = "Download",
+        filename = "model-summary"
+      ))
+  ), rownames = FALSE)
+  
+  # Download button for summary (LaTeX version)----
+  output$downloadmodsumLatex <- downloadHandler(
+    filename = function() {
+      paste("model-summary.tex", sep="")
+    },
+    content = function(file) {
+      base::print(xtable(globalVars$make_model_summary, digits = 4), file, type = "latex")
+    }
+  )
+  
+  
   
   
   
