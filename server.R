@@ -1016,3 +1016,13 @@ server <- (function(input, output, session){
   
 }
 )
+
+#NOTE: HI LEO!
+#Alright leo, just wanna add this here cuz I spent about 2 hrs cross-referencing his code with ours
+# 1. He appears to have an input dataframe/tibble that I can't seem to find the source for. 
+# 2. We have code for unchecking the assumption boxes, but those don't seem to exist. I wanna run that by ya first
+# because that's gonna be a massive code update. Tmr, I'll see if I can make a branch to experiment with some stuff, but that's
+# a whole can of worms that I'll need about 2-3 hours to start deciphering ngl
+# 3. In his model, there's several things in UI that check and uncheck the boxes, which are then used as boolean values in server (which is weird)
+# Look for anything that uses the "CheckboxInput()" function in his code. We do have a few instances in our code too.
+# 4. In his code, there is one confusing bit with the checkbox inputs, and that's that I never see it updated to true. Im gonna ask him on Monday abt it.

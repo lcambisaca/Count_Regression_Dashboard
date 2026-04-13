@@ -222,7 +222,53 @@ ui <- tagList(
                                              
                                              
                                     ),
-                                    tabPanel("Assumptions", value = "assumptions"),
+                                    tabPanel("Assumptions", value="assumptions",
+                                             fluidPage(h1("Assumptions for Regression"),
+                                                       fluidRow(
+                                                         column(4, style = "background-color:#ecf0f1;", tags$hr(), br(),
+                                                                h4("Make sure that you satisfy all linear regression assumptions:"), br(),
+                                                                # Assumption 1
+                                                                checkboxInput("asmp_1", HTML("The sample(s) is representative, and observations are independent."), FALSE),
+                                                                hidden(div(id='asmp_1note', htmlOutput('asmp_1'))),
+                                                                # Assumption 2
+                                                                checkboxInput("asmp_2", "The underlying distribution of the residuals is Gaussian", FALSE),
+                                                                hidden(div(id='asmp_2note', htmlOutput('asmp_2'), style="margin-bottom:10px;margin-top:10px")),
+                                                                hidden(div(id='log_button', actionButton("logtransform", "log transform"), style="margin-bottom:10px;margin-top:10px")),
+                                                                hidden(div(id='lp1_button', actionButton("logplus1transform", "log(y+1) transform"), style="margin-bottom:10px;margin-top:10px")),
+                                                                hidden(div(id='ihs_button', actionButton("ihstransform", "inverse hyperbolic sine transform"), style="margin-bottom:10px;margin-top:10px")),
+                                                                # Assumption 3
+                                                                checkboxInput("asmp_3", "The residuals have constant variance."),
+                                                                hidden(div(id='asmp_3note', htmlOutput('asmp_3'))),
+                                                                # Assumption 4
+                                                                checkboxInput("asmp_4", "The predictors are not collinear."),
+                                                                hidden(div(id='asmp_4note', htmlOutput('asmp_4'))),
+                                                                br(),
+                                                                actionButton("check_asmp", strong("Check Assumptions")), br(), br(),    # Button to check all assumptions
+                                                                # Hidden divs are displayed only for two-sample independent test
+                                                                hidden(div(id='asmp_note', htmlOutput('asmp_note')))
+                                                         ),
+                                                         column(8, 
+                                                                fluidRow(actionButton("code_asmp", "R code", icon("code")), style = "margin-left: 20px;"), 
+                                                                br(),   # Show code using shinymeta pkg
+                                                                fluidRow(shinycssloaders::withSpinner(plotOutput("asmp_plot")), style = "margin-left: 20px;"),
+                                                                fluidRow(
+                                                                  column(width=2, textInput("asmp_plot_height", "Enter Height", value=7)),
+                                                                  column(width=2, textInput("asmp_plot_width", "Enter Width", value=7)),
+                                                                  column(width=2, selectInput("asmp_plot_units", "Units", choices = c("in", "cm"))),
+                                                                  column(width=2, selectInput("asmp_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                                  column(width=2, downloadButton('downloadasmpPlot'),style = "margin-top: 25px;"), #
+                                                                  tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                                ),
+                                                                br(),
+                                                                hidden(div(id='vifdiv',
+                                                                           fluidRow(column(12, actionButton("code_vif", "R code", icon("code")), downloadButton('downloadvifLatex',label="LaTeX"))),br(),
+                                                                           fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("vifTab")))),br()
+                                                                )),
+                                                         )
+                                                       )
+                                                       
+                                             )
+                                    ),
                                     tabPanel("Outliers", value = "checks"),
                                     tabPanel("Plots", value = "plot")
                                     
