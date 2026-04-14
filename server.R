@@ -1,3 +1,4 @@
+# https://shiny.colgate.edu/apps/Collaboratory-Apps/Linear-Regression/
 server <- (function(input, output, session){
   options(scipen = 4)
   #############################################################################################
@@ -52,11 +53,17 @@ server <- (function(input, output, session){
   globalVars$prepare_interaction_emmeanscontrast_interp <- NULL
   globalVars$ggemmeansplot <- NULL
   
-  # (NOTE PLOT 6) Make sure to instantiate plots
+  #---------------------------------------------
+  # (NOTE PLOT) 1 Make sure to instantiate plots
+  #---------------------------------------------
+  
   globalVars$Pois_RQRPlot <- NULL
   globalVars$NB_RQRPlot <- NULL
   globalVars$RQRPlot <- NULL
   globalVars$Pearson_Residual <- NULL
+  globalVars$ZeroInflated <- NULL
+  
+  
   
   globalVars$jnplot <- NULL
   globalVars$prepare_jn_int <- NULL
@@ -896,14 +903,28 @@ server <- (function(input, output, session){
         globalVars$make_model_summary <- make_model_summary()
         
         
-        #NOTE Should plot stuff
-        
-        globalVars$RQRPlot <- tryCatch({ # (NOTE PLOT 5 need to call this btw) 
+        globalVars$RQRPlot <- tryCatch({ # (NOTE PLOT) 2 
           RQRPlot()
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the RQR Plot.", type = "error")
           NULL
         })
+        
+        globalVars$Pearson_Residual <- tryCatch({
+          Pearson_Residual()
+        }, error = function(e) {
+          shinyalert("Error!", text = "There was an issue making the Pearson Plot.", type = "error")
+          NULL
+        })
+        
+        globalVars$ZeroInflated <- tryCatch({ 
+          ZeroInflated()
+        }, error = function(e) {
+          shinyalert("Error!", text = "There was an issue making the ZeroInflated Plot.", type = "error")
+          NULL
+        })
+        
+    
         
         
         
@@ -1036,11 +1057,178 @@ server <- (function(input, output, session){
     }
   )
   
+  
+  
+  ########################################################
+  # Zero Inflated Test
+  ########################################################
+  
+  ZeroInflated <-metaReactive2({
+    req(globalVars$model)
+    dat <- globalVars$dataset
+    model <- globalVars$model
+    
+    
+  
+    metaExpr({
+      
+    # Extract the response variable safely
+    y_var <- model.response(model.frame(model))
+    
+    # Count the zeros
+    obs_zeros <- sum(y_var == 0, na.rm = TRUE)
+    
+    numZeros <-rep(NA,1000)
+    
+    for (i in 1:1000){
+      numZeros[i] <- sum(simulate(model) == 0)
+    }
+    
+    mean(numZeros <= obs_zeros)
+    
+    library(ggplot2)
+    
+    
+    sim_data <- data.frame(zeros = numZeros)
+    
+    ggplot(sim_data, aes(x = zeros)) +
+      geom_histogram(aes(y = after_stat(density)), 
+                     binwidth = 1, 
+                     fill = "#5b5b5b", 
+                     color = "blue") +
+      
+      geom_vline(xintercept = obs_zeros, 
+                 color = "red", 
+                 linetype = "dotted", 
+                 linewidth = 1) +
+      
+      labs(title = "Assessing Zero Inflation",
+           x = "Observed Zeros",
+           y = "Density") +
+      
+      theme_bw()
+    
+    })
+  
+  })
+  
+  
+  # Render plot to UI
+  output$ZeroInflated_Plot <- renderPlot({ # This part and bellow is specific to UI 
+    globalVars$ZeroInflated
+  })
+  
+  # Download button for plots (call reactive function here to get plot object) ---- 
+  output$downloadZeroInflated_Plot <- downloadHandler(  
+    filename = function() { paste('ZeroInflated', input$RQR_plot_format, sep='') },
+    content = function(file) {
+      ggsave(file, plot = globalVars$ZeroInflated_Plot, device = input$ZeroInflated_Plot_format, 
+             height = as.numeric(input$ZeroInflated_Plot_height), width = as.numeric(input$ZeroInflated_Plot_width), 
+             units = input$ZeroInflated_Plot_units)
+    }
+  )
+  
+  observeEvent(input$code_ZeroInflated, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse) 
+        library(ggeffects)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      # prepare_transformed_data(), still gotta think abt this
+      #  prepare_scaled_data(),
+      fitmodel(),
+      ZeroInflated()
+    )
+    
+    displayCodeModal(
+      code, 
+      title = "Interaction Marginal Effects Plot",
+      size = "l", 
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
   ##########################################################
-  # RQR Plots
+  # Pearson Plots
+  ##########################################################
+  Pearson_Residual <- metaReactive2({
+    req(globalVars$model)
+    dat <- globalVars$dataset
+    model <- globalVars$model
+    
+    
+    metaExpr({
+      
+    ggdat <- tibble(r2= resid(model, type = "pearson")^2,
+                    lambdas = fitted(model))
+    ggplot(ggdat) +
+      geom_point(aes(x=lambdas, y=r2)) +
+      geom_hline(yintercept = 1, linetype="dotted", color="red") +
+      geom_smooth(aes(x=lambdas, y=r2), color="black") +
+      theme_bw() +
+      xlab(bquote(lambda)) +
+      ylab(bquote(r^2))
+    })
+  
+  })
+  
+  
+  # Render plot to UI
+  output$Pearson_Residual_Plot <- renderPlot({ # This part and bellow is specific to UI 
+    globalVars$Pearson_Residual
+  })
+  
+  # Download button for plots (call reactive function here to get plot object) ---- 
+  output$downloadRQRPlot <- downloadHandler(  
+    filename = function() { paste('Pearson_Residual', input$RQR_plot_format, sep='') },
+    content = function(file) {
+      ggsave(file, plot = globalVars$Pearson_Residual_Plot, device = input$Pearson_Residual_Plot_format, 
+             height = as.numeric(input$Pearson_Residual_Plot_height), width = as.numeric(input$Pearson_Residual_Plot_width), 
+             units = input$Pearson_Residual_Plot_units)
+    }
+  )
+  
+  observeEvent(input$code_Pearson_Residual, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse) 
+        library(ggeffects)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      # prepare_transformed_data(), still gotta think abt this
+      #  prepare_scaled_data(),
+      fitmodel(),
+      Pearson_Residual()
+    )
+    
+    displayCodeModal(
+      code, 
+      title = "Interaction Marginal Effects Plot",
+      size = "l", 
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
+  
+  
+  ##########################################################
+  # RQR Plots Just set up for POIS
   ##########################################################
   
-RQRPlot <- metaReactive2({ # For pois (NOTE PLOT 1) 
+RQRPlot <- metaReactive2({ # (NOTE PLOT) 3
   req(globalVars$model)
   dat <- globalVars$dataset
   model <- globalVars$model
@@ -1092,12 +1280,12 @@ RQRPlot <- metaReactive2({ # For pois (NOTE PLOT 1)
   
 
 # Render plot to UI
-output$RQR_plot <- renderPlot({ # This part and bellow is specific to UI (NOTE PLOT 2) 
+output$RQR_plot <- renderPlot({ # This part and bellow is specific to UI (NOTE PLOT) 4
   globalVars$RQRPlot
 })
 
 
-# Download button for plots (call reactive function here to get plot object) ---- (NOTE PLOT 3) 
+# Download button for plots (call reactive function here to get plot object) ---- (NOTE PLOT) 5
 output$downloadRQRPlot <- downloadHandler(  
   filename = function() { paste('RQRplot.', input$RQR_plot_format, sep='') },
   content = function(file) {
@@ -1108,7 +1296,7 @@ output$downloadRQRPlot <- downloadHandler(
 )
 
 
-# Display code for ci visualization plot ---- (NOTE PLOT 4) 
+# Display code for ci visualization plot ---- (NOTE PLOT) 6
 observeEvent(input$code_RQR, {
   code <- expandChain(
     "# Ensure to load your data as an object called dat.",
@@ -1136,6 +1324,9 @@ observeEvent(input$code_RQR, {
   )
 })
 
+
+###
+# Helper Function
 
 refactor_data <- metaReactive2({
   if(length(input$select_factors) > 0){
