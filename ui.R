@@ -204,7 +204,7 @@ ui <- tagList(
                                                h1("Pairwise Plots", align = "center"), br(),
                                                fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(), # Here Tom
                                                
-                                             
+                                               
                                                
                                                
                                                
@@ -270,7 +270,44 @@ ui <- tagList(
                                              )
                                     ),
                                     tabPanel("Outliers", value = "checks"),
-                                    tabPanel("Plots", value = "plot")
+                                    tabPanel("Plots", value = "plot",
+                                             fluidPage(tags$hr(),
+                                                       h1("RQR Plot for Pearson"),
+                                                       h3("Visualization"),
+                                                       fluidRow(column(12, actionButton("code_RQR", "R code", icon("code")))),
+                                                       br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), #(NOTE PLOT 7) This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
+                                                       fluidRow(
+                                                         column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
+                                                         column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),
+                                                         column(width=2, selectInput("RQR_plot_units", "Units", choices = c("in", "cm"))),
+                                                         column(width=2, selectInput("RQR_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                         column(width=2, downloadButton('downloadRQRPlot'),style = "margin-top: 25px;"), #
+                                                         tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                       ),
+                                                       tags$hr(),
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       
+                                                       )
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             
+                                             )
+                                    
+                                    
                                     
                                     
                                     
