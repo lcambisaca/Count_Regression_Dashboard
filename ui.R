@@ -162,7 +162,11 @@ ui <- tagList(
                                    selectInput("sample_data_choice","Sample Data:",
                                                choices = c("Camera Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data"),
                                                selected = "U.S. News College Data"))),
-                        tags$hr(),
+                        tags$hr(), #shaw shaw
+                        div(id='choose_model',
+                                   selectInput("model_choice","Model:",
+                                               choices = c("Poisson", "Negative Binomial", "Quasi-Poisson", "Zero-Inflated Poisson", "Zero Inflated Negative Binomial", "Tweedie"),
+                                               selected = "Poisson")),
                         hidden(selectizeInput("select_factors",
                                               "Specify Categorical Variables in the Data:",
                                               choices = NULL,
@@ -231,39 +235,36 @@ ui <- tagList(
                                                                 checkboxInput("asmp_1", HTML("The sample(s) is representative, and observations are independent."), FALSE),
                                                                 hidden(div(id='asmp_1note', htmlOutput('asmp_1'))),
                                                                 # Assumption 2
-                                                                checkboxInput("asmp_2", "The underlying distribution of the residuals is Gaussian", FALSE),
+                                                                checkboxInput("asmp_2", "Little to no (multi)collinearity.", FALSE),
                                                                 hidden(div(id='asmp_2note', htmlOutput('asmp_2'), style="margin-bottom:10px;margin-top:10px")),
                                                                 hidden(div(id='log_button', actionButton("logtransform", "log transform"), style="margin-bottom:10px;margin-top:10px")),
                                                                 hidden(div(id='lp1_button', actionButton("logplus1transform", "log(y+1) transform"), style="margin-bottom:10px;margin-top:10px")),
                                                                 hidden(div(id='ihs_button', actionButton("ihstransform", "inverse hyperbolic sine transform"), style="margin-bottom:10px;margin-top:10px")),
                                                                 # Assumption 3
-                                                                checkboxInput("asmp_3", "The residuals have constant variance."),
+                                                                checkboxInput("asmp_3", "For each predictor, about 10-20 events per observation."),
                                                                 hidden(div(id='asmp_3note', htmlOutput('asmp_3'))),
                                                                 # Assumption 4
-                                                                checkboxInput("asmp_4", "The predictors are not collinear."),
+                                                                checkboxInput("asmp_4", "The relationship between the predictors and the log-mean is linear."),
                                                                 hidden(div(id='asmp_4note', htmlOutput('asmp_4'))),
                                                                 br(),
                                                                 actionButton("check_asmp", strong("Check Assumptions")), br(), br(),    # Button to check all assumptions
                                                                 # Hidden divs are displayed only for two-sample independent test
                                                                 hidden(div(id='asmp_note', htmlOutput('asmp_note')))
                                                          ),
+                                                         
                                                          column(8, 
-                                                                fluidRow(actionButton("code_asmp", "R code", icon("code")), style = "margin-left: 20px;"), 
-                                                                br(),   # Show code using shinymeta pkg
-                                                                fluidRow(shinycssloaders::withSpinner(plotOutput("asmp_plot")), style = "margin-left: 20px;"),
+                                                                fluidRow(column(12, actionButton("code_RQR", "R code", icon("code")))),
+                                                                
+                                                                fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
                                                                 fluidRow(
-                                                                  column(width=2, textInput("asmp_plot_height", "Enter Height", value=7)),
-                                                                  column(width=2, textInput("asmp_plot_width", "Enter Width", value=7)),
-                                                                  column(width=2, selectInput("asmp_plot_units", "Units", choices = c("in", "cm"))),
-                                                                  column(width=2, selectInput("asmp_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
-                                                                  column(width=2, downloadButton('downloadasmpPlot'),style = "margin-top: 25px;"), #
-                                                                  tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
-                                                                ),
-                                                                br(),
-                                                                hidden(div(id='vifdiv',
-                                                                           fluidRow(column(12, actionButton("code_vif", "R code", icon("code")), downloadButton('downloadvifLatex',label="LaTeX"))),br(),
-                                                                           fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("vifTab")))),br()
-                                                                )),
+                                                                     column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
+                                                                     column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),
+                                                                     column(width=2, selectInput("RQR_plot_units", "Units", choices = c("in", "cm"))),
+                                                                     column(width=2, selectInput("RQR_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                                     column(width=2, downloadButton('downloadRQRPlot'),style = "margin-top: 25px;"), #
+                                                                     tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                                )
+                                                  
                                                          )
                                                        )
                                                        
@@ -276,7 +277,7 @@ ui <- tagList(
                                                        h3("Visualization"),
                                                        fluidRow(column(12, actionButton("code_RQR", "R code", icon("code")))),
                                                        br(),
-                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
+                                                       #fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
                                                        fluidRow(
                                                          column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
                                                          column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),

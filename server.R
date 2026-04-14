@@ -389,7 +389,7 @@ server <- (function(input, output, session){
   }
   
   
-  observeEvent(input$select_factors,{ # Whole point of this is to update data to speciefy which ones are what, I want to also add fact and numerical ontop of each header in future
+  observeEvent(input$select_factors,{ # Whole point of this is to update data to specify which ones are what, I want to also add fact and numerical ontop of each header in future
     globalVars$changed.input <- TRUE
     req(globalVars$dataset)
     updateTabsetPanel(session, "workPanel", selected = "data") # we just go back to data
@@ -931,7 +931,7 @@ server <- (function(input, output, session){
     
         
         showAllTabs()
-        updateTabsetPanel(session, "workPanel", selected = "plot")
+        updateTabsetPanel(session, "workPanel", selected = "assumptions")
         removeModal()
         # Hide tabs and do nothing further if model is not fit
         globalVars$changed.input <-FALSE
