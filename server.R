@@ -52,6 +52,12 @@ server <- (function(input, output, session){
   globalVars$prepare_interaction_emmeanscontrast_interp <- NULL
   globalVars$ggemmeansplot <- NULL
   
+  # (NOTE PLOT 6) Make sure to instantiate plots
+  globalVars$Pois_RQRPlot <- NULL
+  globalVars$NB_RQRPlot <- NULL
+  globalVars$RQRPlot <- NULL
+  globalVars$Pearson_Residual <- NULL
+  
   globalVars$jnplot <- NULL
   globalVars$prepare_jn_int <- NULL
   
@@ -320,7 +326,7 @@ server <- (function(input, output, session){
           mutate(Age=as.numeric(Age))
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
-        dat<-College
+        dat<- College
       }else if(input$sample_data_choice=="Camera Data"){
         dat<-read.csv("www/cs_replication_data.csv")
       }
@@ -581,7 +587,7 @@ server <- (function(input, output, session){
       "####################################"
       "# Fit Model"
       "####################################"
-      model<-lm(..(as.formula(globalVars$equation)), data=dat)
+      model<-glm(..(as.formula(globalVars$equation)), data=dat)
     })
   }, inline=TRUE)
   
@@ -668,6 +674,12 @@ server <- (function(input, output, session){
     }
   })
   
+  
+    observeEvent(input$interaction.error,{
+    if(!globalVars$changed.input & (input$var_inter!="None" & input$var_moderator!="Select...")){
+      globalVars$ggemmeansplot <- ggemmeansplot()
+    }
+  })
   
   
   
@@ -801,7 +813,7 @@ server <- (function(input, output, session){
         # Try to fit model
         model <- tryCatch({
           
-          model<-lm((as.formula(globalVars$equation)), data=globalVars$dataset)
+          model<-glm((as.formula(globalVars$equation)), data=globalVars$dataset)
           
           # Change the call to have the full formula -- this is imporant for later. It is usually unnecessary but it is important
           # for the emmeans code -- this is how it checks whether a log transformation was used.
@@ -876,15 +888,29 @@ server <- (function(input, output, session){
       
       
       
-      if(run){
+      if(run){ # NOTE THIS IS WHERE ALL PLOTS AND THINGS HAPPEN
         showModal(modalDialog("Things are happening in the background!", footer=NULL))
         globalVars$model <- model
         
         globalVars$modelsummary <- prepare_model_summary()
         globalVars$make_model_summary <- make_model_summary()
         
+        
+        #NOTE Should plot stuff
+        
+        globalVars$RQRPlot <- tryCatch({ # (NOTE PLOT 5 need to call this btw) 
+          RQRPlot()
+        }, error = function(e) {
+          shinyalert("Error!", text = "There was an issue making the RQR Plot.", type = "error")
+          NULL
+        })
+        
+        
+        
+    
+        
         showAllTabs()
-        updateTabsetPanel(session, "workPanel", selected = "summary")
+        updateTabsetPanel(session, "workPanel", selected = "plot")
         removeModal()
         # Hide tabs and do nothing further if model is not fit
         globalVars$changed.input <-FALSE
@@ -1010,13 +1036,121 @@ server <- (function(input, output, session){
     }
   )
   
+  ##########################################################
+  # RQR Plots
+  ##########################################################
+  
+RQRPlot <- metaReactive2({ # For pois (NOTE PLOT 1) 
+  req(globalVars$model)
+  dat <- globalVars$dataset
+  model <- globalVars$model
+  
+  library('patchwork')
+  library('emmeans')
+  
+  metaExpr({
+    "####################################"
+    "# Create Data for PDF of Residuals Plot"
+    "####################################"
+  counts <- model$y
+  lambdas <- fitted(model)
+  rqr <- rep(NA, length(lambdas))
   
   
+  for(i in 1:length(lambdas)){
+    ai <- ppois(counts[i]-1,lambda=lambdas[i])
+    bi <- ppois(counts[i], lambda=lambdas[i])
+    ui <- ai+runif(1)* (bi-ai)
+    ui <- max(min(ui,1-10^(-6)),10^(-6))
+    rqr[i] <- qnorm(ui)
+  }
   
+  pearson.ratio <- sum(residuals(model, type= "pearson")^2)/model$df.residual
+  p1 <- ggplot(data=tibble(lambda=lambdas,e=rqr)) +
+    geom_hline(yintercept=0,linetype="dotted")+
+    geom_point(aes(x=lambda, y=e))+
+    theme_bw()+
+    xlab(bquote(lambda))+
+    ylab("RandomizedQuantileResiduals")
   
-}
+  p2 <- ggplot(data=tibble(e=rqr)) +
+    stat_qq(aes(sample=e)) +
+    stat_qq_line(aes(sample=e))+
+    theme_bw()+
+    xlab("Theoretical")+
+    ylab("Observed")+
+    ggtitle(paste("DispersionRatio=",round(pearson.ratio,4)))
+  
+  p1+p2
+  
+  })
+  
+#  browser() we use this to pause app at a part to help debug
+  
+    
+})
+  
+
+# Render plot to UI
+output$RQR_plot <- renderPlot({ # This part and bellow is specific to UI (NOTE PLOT 2) 
+  globalVars$RQRPlot
+})
+
+
+# Download button for plots (call reactive function here to get plot object) ---- (NOTE PLOT 3) 
+output$downloadRQRPlot <- downloadHandler(  
+  filename = function() { paste('RQRplot.', input$RQR_plot_format, sep='') },
+  content = function(file) {
+    ggsave(file, plot = globalVars$RQRPlot, device = input$RQR_plot_format, 
+           height = as.numeric(input$RQR_plot_height), width = as.numeric(input$RQR_plot_width), 
+           units = input$RQR_plot_units)
+  }
 )
 
+
+# Display code for ci visualization plot ---- (NOTE PLOT 4) 
+observeEvent(input$code_RQR, {
+  code <- expandChain(
+    "# Ensure to load your data as an object called dat.",
+    quote({
+      library(tidyverse) 
+      library(ggeffects)
+    }),
+    "####################################",
+    "# Load Data",
+    "####################################",
+    read_data(),
+    refactor_data(),
+   # prepare_transformed_data(), still gotta think abt this
+  #  prepare_scaled_data(),
+    fitmodel(),
+    RQRPlot()
+  )
+  
+  displayCodeModal(
+    code, 
+    title = "Interaction Marginal Effects Plot",
+    size = "l", 
+    fontSize = 16,
+    clip=NULL
+  )
+})
+
+
+refactor_data <- metaReactive2({
+  if(length(input$select_factors) > 0){
+    metaExpr({
+      "####################################"
+      "# Specify factor variables"
+      "####################################"
+      dat <- dat %>%
+        mutate(across(..(input$select_factors), as.factor))
+    })
+  }
+},inline=TRUE)
+
+}
+)
 #NOTE: HI LEO!
 #Alright leo, just wanna add this here cuz I spent about 2 hrs cross-referencing his code with ours
 # 1. He appears to have an input dataframe/tibble that I can't seem to find the source for. 
