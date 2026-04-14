@@ -721,6 +721,42 @@ server <- (function(input, output, session){
     }
   })
   
+  #############################################################################################
+  # When a new model selected
+  #############################################################################################  
+    
+    #(NOTE MODEL DROPDOWN) Hi leo this is a skeleton of the code we'll need for the dropdown menu. I alr changed the var name to input$model_choice
+    #if you need to see what I did in ui, just ctrl + f and type "shaw shaw" (without the quotes).
+    
+    
+    observeEvent(input$model_choice,{
+      globalVars$changed.input <- TRUE
+      if(globalVars$sample){
+        if(input$model_choice=="Palmer Penguins"){
+          library(palmerpenguins)
+          dat<-data.frame(penguins)
+        }else if(input$model_choice=="Bracht et al. MFAP4" ){
+          dat<-read.csv("www/BrachtMFAP4Data.csv")%>%
+            mutate(Age=as.numeric(Age))
+        }else if(input$model_choice=="U.S. News College Data"){
+          library(ISLR)
+          dat<-College
+        }else if(input$model_choice=="Camera Data" ){
+          dat<-read.csv("www/cs_replication_data.csv")
+        }
+        shinyjs::show("select_factors")
+        globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
+          mutate_if(is.integer,as.numeric)
+        globalVars$dataset.original <- globalVars$dataset
+        
+        updateFactorsSelectize()
+        hideInteractionInput()
+        emptyEquation()
+        uncheckAllAssumptions()
+        hideAllTabs()
+      }
+    })  
+    
   ########################################
   # Check Equation Input
   ########################################
