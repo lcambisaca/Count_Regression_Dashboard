@@ -276,7 +276,7 @@ ui <- tagList(
                                                        h3("Visualization"),
                                                        fluidRow(column(12, actionButton("code_RQR", "R code", icon("code")))),
                                                        br(),
-                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), #(NOTE PLOT 7) This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
                                                        fluidRow(
                                                          column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
                                                          column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),
@@ -286,6 +286,30 @@ ui <- tagList(
                                                          tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
                                                        ),
                                                        tags$hr(),
+                                                       fluidRow(column(12, actionButton("code_Pearson_Residual", "R code", icon("code")))),
+                                                       br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("Pearson_Residual_Plot")))), 
+                                                       fluidRow(
+                                                         column(width=2, textInput("Pearson_Residual_Plot_height", "Enter Height", value=7)),
+                                                         column(width=2, textInput("Pearson_Residual_Plot_width", "Enter Width", value=7)),
+                                                         column(width=2, selectInput("Pearson_Residual_Plot_units", "Units", choices = c("in", "cm"))),
+                                                         column(width=2, selectInput("Pearson_Residual_Plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                         column(width=2, downloadButton('downloadPearson_Residual_Plot'),style = "margin-top: 25px;"), #
+                                                         tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                       ),
+                                                       tags$hr(),
+                                                       fluidRow(column(12, actionButton("code_ZeroInflated", "R code", icon("code")))),
+                                                       br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("ZeroInflated_Plot")))), 
+                                                       fluidRow(
+                                                         column(width=2, textInput("ZeroInflated_Plot_height", "Enter Height", value=7)),
+                                                         column(width=2, textInput("ZeroInflated_Plot_width", "Enter Width", value=7)),
+                                                         column(width=2, selectInput("ZeroInflated_Plot_units", "Units", choices = c("in", "cm"))),
+                                                         column(width=2, selectInput("ZeroInflated_Plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                         column(width=2, downloadButton('downloadZeroInflated_Plot'),style = "margin-top: 25px;"), #
+                                                         tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                       ),
+                                                       
                                                        
                                                        
                                                        
