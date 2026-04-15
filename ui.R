@@ -42,6 +42,8 @@ library(car)         #for anova
 #library(crayon)      #for removing style from Johnson Neyman output
 library(effectsize)
 #library(ggforce)
+library(pscl)
+library(tweedie)
 
 ###----------------------------------------------------------------------------###
 ##U---------------------------------------------------------------------------I###
@@ -173,10 +175,9 @@ ui <- tagList(
                                               selected = NULL,
                                               multiple = TRUE)),
                         
-                        #From here down not set up
                         textInput("equation", "Enter your desired regression equation:"),
-                        bsTooltip("equation", "Example: response ~ explanatory_1 + explanatory_2 + ... + explanatory_k",
-                                  "right", trigger = "hover", options = list(container = "body")), #helpful will need to adjuts for ZIP
+                        #bsTooltip(id = "equation", title = "This is an input",
+                         #         placement = "right", trigger = "hover"),
                         checkboxInput("scalevars", "Scale all variables (standardize)", FALSE), #need to see if user wabrs to scale and do so if yes need to implement
                         numericInput("alpha", "Significance level (\u03B1): ", value = 0.05, step = 0.001, min = 0, max = 1),     # alpha level need to adjust if user wants to
                         div(class = "text-center", actionButton("DoCompute", "Compute Model Output")), #DoCompute id for button

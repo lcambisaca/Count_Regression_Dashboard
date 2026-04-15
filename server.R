@@ -600,13 +600,53 @@ server <- (function(input, output, session){
     
   }
   
-  fitmodel<-metaReactive2({
+  
+  
+  ############################################################################################
+  # All models 
+  ############################################################################################
+  fitmodel <-metaReactive2({
+    req(globalVars$model_choice, globalVars$equation)
+    
     dat<-globalVars$data
+    formula <- as.formula(globalVars$equation)
+    mod_type <- globalVars$model_choice
+    print(mod_type)
+    print(formula)
+     # uvc
     metaExpr({
       "####################################"
-      "# Fit Model"
+       paste("# Fit Model:", ..(mod_type))
       "####################################"
-      model<-glm(..(as.formula(globalVars$equation)), data=dat)
+
+      model <- ..(
+        if (mod_type == "Poisson") {
+          # Standard Poisson
+          quote(glm(formula, data = dat, family = poisson(link = "log")))
+        }
+        else if (mod_type == "Negative Binomial") {
+          # Requires library(MASS)
+          quote(MASS::glm.nb(formula, data = dat))
+        } else if (mod_type == "Quasi-Poisson") {
+          # Overdispersion adjustment
+          quote(glm(formula, data = dat, family = quasipoisson(link = "log")))
+          
+        } else if (mod_type == "Zero-Inflated Poisson") {
+          # Requires library(pscl)
+          quote(pscl::zeroinfl(formula, data = dat, dist = "poisson"))
+          
+        } else if (mod_type == "Zero Inflated Negative Binomial") {
+          # Requires library(pscl)
+          
+          quote(pscl::zeroinfl(formula, data = dat, dist = "negbin"))
+          
+        } else if (mod_type == "Tweedie") {
+          # Requires library(tweedie)
+          # Usually family = tweedie(var.power=1.5, link.power=0)
+          
+          quote(glm(formula, data = dat, family = statmod::tweedie(var.power = 1.5, link.power = 0)))
+        })
+      
     })
   }, inline=TRUE)
   
@@ -740,58 +780,44 @@ server <- (function(input, output, session){
     #if you need to see what I did in ui, just ctrl + f and type "shaw shaw" (without the quotes).
     
     observeEvent(input$model_choice,{ #Okay this is set up to get the user choice and save it in server, now once they select one it should clear
+      req(input$model_choice)
+      
       globalVars$changed.model.input <- TRUE
-      if(globalVars$changed.model.input){
-        if(input$model_choice=="Possion"){
-          globalVars$model_choice <- "Possion"
-        }else if(input$model_choice=="Negative Binomial" ){
-          globalVars$model_choice <- "Negative Binomial"
-          
-        }else if(input$model_choice=="Quasi-Poisson"){
-          globalVars$model_choice <- "Quasi-Poisson"
-          
-        }else if(input$model_choice=="Zero-Inflated Poisson" ){
-          globalVars$model_choice <- "Zero-Inflated Poisson"
-          
-        }else if(input$model_choice=="Tweedie" ){
-        globalVars$model_choice <- "Tweedie"
-        
-        }
-        else if(input$model_choice=="Zero Inflated Negative Binomial" ){
-        globalVars$model_choice <- "Zero Inflated Negative Binomial"
-        }
+      globalVars$model_choice <- input$model_choice
+      print(paste("Selected Model:", globalVars$model_choice))
       
-        print(globalVars$model_choice)
-        hideInteractionInput()
-        emptyEquation()
-        uncheckAllAssumptions()
-        hideAllTabs()
-      }
-    })  
+      hideInteractionInput()
+      emptyEquation()
+      uncheckAllAssumptions()
+      hideAllTabs()
+      
     
-  
-  # Ai bottom will fix tmrw
-  observeEvent(input$model_choice, {
-    req(input$model_choice)
-    
-    # Define the message based on the model
+    # Define the message based on the model selection
     tip_message <- case_when(
+      
+      # Standard Poisson
       input$model_choice == "Poisson" ~ 
-        "Example: counts ~ var1 + var2",
+        "Example: response ~ x_1 + x_2 + ... + x_k",
       
-      input$model_choice == "Zero-Inflated Poisson" ~ 
-        "Format: response ~ count_predictors | zero_predictors (e.g., y ~ x1 | x2)",
       
-      input$model_choice == "Negative Binomial" ~ 
-        "Example: counts ~ var1 + var2 (handles overdispersion)",
+      # Models for Over dispersion
+      input$model_choice %in% c("Negative Binomial", "Quasi-Poisson", "Tweedie") ~ 
+        "Format: response ~ x_1 + x_2 + ... + x_k (Adjusted for overdispersion)",
       
-      TRUE ~ "Example: response ~ explanatory_1 + explanatory_2"
+      # Zero-Inflated Models (typically using the 'pscl' or 'glmmTMB' package syntax)
+      input$model_choice %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial") ~ 
+        "Format: response ~ count_vars | zero_vars (e.g., y ~ x1 | z1)",      
+
+      TRUE ~ "Format: response ~ explanatory_1 + explanatory_2 + ... + explanatory_k"
     )
+
+    # Remove the old tooltip and add the new one ask prof this is SHAWWWW
     
-    # Remove the old tooltip and add the new one
     removeTooltip(session, "equation")
+
     addTooltip(session, id = "equation", title = tip_message, 
                placement = "right", trigger = "hover")
+    
   })
   
   
@@ -895,13 +921,42 @@ server <- (function(input, output, session){
         
         # Try to fit model
         model <- tryCatch({
+          choice <- globalVars$model_choice
+          form <- as.formula(globalVars$equation)
+          dat <- globalVars$dataset
+          model <- switch(choice,
+                        "Poisson" = glm(form, data = dat, family = poisson(link = "log")),
+                        "Quasi-Poisson" = glm(form, data = dat, family = quasipoisson(link = "log")),
+                        "Negative Binomial" = MASS::glm.nb(form, data = dat),
+                        "Zero-Inflated Poisson" = pscl::zeroinfl(form, data = dat, dist = "poisson"),
+                        "Zero Inflated Negative Binomial" = pscl::zeroinfl(form, data = dat, dist = "negbin"),
+                        "Tweedie" = glm(form, data = dat, family = statmod::tweedie(1.5, 0)),
+                        # Default fallback
+                        glm(form, data = dat, family = poisson(link = "log")) 
+          )
           
-          model<-glm((as.formula(globalVars$equation)), data=globalVars$dataset)
+          
+        #  model<-glm((as.formula(globalVars$equation)), data=globalVars$dataset)
           
           # Change the call to have the full formula -- this is imporant for later. It is usually unnecessary but it is important
           # for the emmeans code -- this is how it checks whether a log transformation was used.
-          model$call <- str2lang(paste0("lm(formula=",globalVars$equation, ",data=globalVars$dataset)"))
-
+          model$call <- substitute(
+                FUNC(formula = F_VAL, data = D_VAL, family = FAM_VAL),
+                list(
+                  FUNC = as.name(if(choice %in% c("Poisson", "Quasi-Poisson", "Tweedie")) "glm" else 
+                                 if(choice == "Negative Binomial") "glm.nb" else "zeroinfl"),
+                  F_VAL = form,
+                  D_VAL = quote(dataset),
+                  # Pass family only if it's a standard GLM
+                  FAM_VAL = if(choice == "Poisson") quote(poisson(link="log")) else 
+                            if(choice == "Quasi-Poisson") quote(quasipoisson(link="log")) else
+                            if(choice == "Tweedie") quote(statmod::tweedie(1.5, 0)) else NULL
+                )
+              )
+              
+              # Clean up the call if family was NULL (for zeroinfl/glm.nb)
+          if(is.null(model$call$family)) model$call$family <- NULL
+          
           model
         }, error = function(e){
           #
@@ -960,7 +1015,7 @@ server <- (function(input, output, session){
           return(NULL)
         }
         
-        if(!("lm" %in% class(model))){
+        if(!("glm" %in% class(model))){
           run <- FALSE
         }
         
@@ -1308,6 +1363,8 @@ RQRPlot <- metaReactive2({ # (NOTE PLOT) 3
   req(globalVars$model)
   dat <- globalVars$dataset
   model <- globalVars$model
+  print(model)
+  
   
   library('patchwork')
   library('emmeans')
