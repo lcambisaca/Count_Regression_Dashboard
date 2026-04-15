@@ -12,6 +12,8 @@ server <- (function(input, output, session){
   globalVars$transform.type <- "none"
   globalVars$interactions = c()
   
+  
+  globalVars$model_choice <- "Poisson" # New
   globalVars$equation <- NULL
   globalVars$response <- NULL
   globalVars$model <- NULL
@@ -72,7 +74,9 @@ server <- (function(input, output, session){
   globalVars$make_margins_summary <- NULL
   globalVars$prepare_margins_interp <- NULL
   
-  globalVars$changed.input <- TRUE    
+  globalVars$changed.input <- TRUE  
+  globalVars$changed.model.input <- TRUE #New
+  
   
   globalVars$scaleDataUpToDate <- FALSE
   
@@ -91,6 +95,8 @@ server <- (function(input, output, session){
   hideTab(inputId="workPanel", target="anova")
   hideTab(inputId="workPanel", target="interpretation")
   hideTab(inputId="workPanel", target="interaction")
+  hideTab(inputId="workPanel", target="plot")
+  
   
   
   ##############################################
@@ -224,7 +230,17 @@ server <- (function(input, output, session){
     output
   }
   
-  
+  refactor_data <- metaReactive2({
+    if(length(input$select_factors) > 0){
+      metaExpr({
+        "####################################"
+        "# Specify factor variables"
+        "####################################"
+        dat <- dat %>%
+          mutate(across(..(input$select_factors), as.factor))
+      })
+    }
+  },inline=TRUE)
   
   hideAllTabs <- function(){
     updateTabsetPanel(session, "workPanel", selected="data")
@@ -235,6 +251,8 @@ server <- (function(input, output, session){
     hideTab(inputId="workPanel", target="anova")
     hideTab(inputId="workPanel", target="interpretation")
     hideTab(inputId="workPanel", target="interaction")
+    hideTab(inputId="workPanel", target="plot")
+    
   }
   
   showAllTabs <- function(){
@@ -243,9 +261,9 @@ server <- (function(input, output, session){
     showTab(inputId="workPanel", target="checks")
     showTab(inputId="workPanel", target="anova")
     showTab(inputId="workPanel", target="interpretation")
+    showTab(inputId="workPanel", target="plot")
+    
   }
-  
-  
   
   hideInteractionInput <- function(){
     shinyjs::hide("interaction_analysis")
@@ -276,8 +294,6 @@ server <- (function(input, output, session){
     updateTextInput(session, "equation", value = "")
   }
   
-  
-  
   uncheckAllAssumptions <- function() {
     shinyjs::hide("asmp_1note")
     shinyjs::hide("asmp_2note")
@@ -302,6 +318,8 @@ server <- (function(input, output, session){
     
     updateCheckboxInput(session, "interaction.error", value = TRUE)
   }
+  
+  
   
   ##############################################################
   # When sample data is loaded (Tom look of sample is good or bad and make adjustements as needed)
@@ -372,7 +390,6 @@ server <- (function(input, output, session){
     
     
   })
-  
   
   
   #############################################################################################
@@ -458,9 +475,7 @@ server <- (function(input, output, session){
   
   ## Will look at transforming later for now wanted to scale in server 276- 387
   
-  
-  #scale_section  ------------------------------------------------------------
-  
+
   ##############################################################################
   # HANDLE SCALE VARIABLES AND TRANSFORMATION COLLISION
   ##############################################################################
@@ -573,9 +588,6 @@ server <- (function(input, output, session){
   })
   
   
-  # ------------------------------------------------------------
-  # Interaction
-  
   #############################################################################################
   # Add variables to interaction select input
   #############################################################################################
@@ -682,12 +694,11 @@ server <- (function(input, output, session){
   })
   
   
-    observeEvent(input$interaction.error,{
+  observeEvent(input$interaction.error,{
     if(!globalVars$changed.input & (input$var_inter!="None" & input$var_moderator!="Select...")){
       globalVars$ggemmeansplot <- ggemmeansplot()
     }
   })
-  
   
   
   #############################################################################################
@@ -728,28 +739,29 @@ server <- (function(input, output, session){
     #(NOTE MODEL DROPDOWN) Hi leo this is a skeleton of the code we'll need for the dropdown menu. I alr changed the var name to input$model_choice
     #if you need to see what I did in ui, just ctrl + f and type "shaw shaw" (without the quotes).
     
-    
-    observeEvent(input$model_choice,{
-      globalVars$changed.input <- TRUE
-      if(globalVars$sample){
-        if(input$model_choice=="Palmer Penguins"){
-          library(palmerpenguins)
-          dat<-data.frame(penguins)
-        }else if(input$model_choice=="Bracht et al. MFAP4" ){
-          dat<-read.csv("www/BrachtMFAP4Data.csv")%>%
-            mutate(Age=as.numeric(Age))
-        }else if(input$model_choice=="U.S. News College Data"){
-          library(ISLR)
-          dat<-College
-        }else if(input$model_choice=="Camera Data" ){
-          dat<-read.csv("www/cs_replication_data.csv")
-        }
-        shinyjs::show("select_factors")
-        globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
-          mutate_if(is.integer,as.numeric)
-        globalVars$dataset.original <- globalVars$dataset
+    observeEvent(input$model_choice,{ #Okay this is set up to get the user choice and save it in server, now once they select one it should clear
+      globalVars$changed.model.input <- TRUE
+      if(globalVars$changed.model.input){
+        if(input$model_choice=="Possion"){
+          globalVars$model_choice <- "Possion"
+        }else if(input$model_choice=="Negative Binomial" ){
+          globalVars$model_choice <- "Negative Binomial"
+          
+        }else if(input$model_choice=="Quasi-Poisson"){
+          globalVars$model_choice <- "Quasi-Poisson"
+          
+        }else if(input$model_choice=="Zero-Inflated Poisson" ){
+          globalVars$model_choice <- "Zero-Inflated Poisson"
+          
+        }else if(input$model_choice=="Tweedie" ){
+        globalVars$model_choice <- "Tweedie"
         
-        updateFactorsSelectize()
+        }
+        else if(input$model_choice=="Zero Inflated Negative Binomial" ){
+        globalVars$model_choice <- "Zero Inflated Negative Binomial"
+        }
+      
+        print(globalVars$model_choice)
         hideInteractionInput()
         emptyEquation()
         uncheckAllAssumptions()
@@ -757,6 +769,34 @@ server <- (function(input, output, session){
       }
     })  
     
+  
+  # Ai bottom will fix tmrw
+  observeEvent(input$model_choice, {
+    req(input$model_choice)
+    
+    # Define the message based on the model
+    tip_message <- case_when(
+      input$model_choice == "Poisson" ~ 
+        "Example: counts ~ var1 + var2",
+      
+      input$model_choice == "Zero-Inflated Poisson" ~ 
+        "Format: response ~ count_predictors | zero_predictors (e.g., y ~ x1 | x2)",
+      
+      input$model_choice == "Negative Binomial" ~ 
+        "Example: counts ~ var1 + var2 (handles overdispersion)",
+      
+      TRUE ~ "Example: response ~ explanatory_1 + explanatory_2"
+    )
+    
+    # Remove the old tooltip and add the new one
+    removeTooltip(session, "equation")
+    addTooltip(session, id = "equation", title = tip_message, 
+               placement = "right", trigger = "hover")
+  })
+  
+  
+  
+  
   ########################################
   # Check Equation Input
   ########################################
@@ -1361,20 +1401,7 @@ observeEvent(input$code_RQR, {
 })
 
 
-###
-# Helper Function
 
-refactor_data <- metaReactive2({
-  if(length(input$select_factors) > 0){
-    metaExpr({
-      "####################################"
-      "# Specify factor variables"
-      "####################################"
-      dat <- dat %>%
-        mutate(across(..(input$select_factors), as.factor))
-    })
-  }
-},inline=TRUE)
 
 }
 )
