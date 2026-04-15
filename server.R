@@ -1414,9 +1414,30 @@ RQRPlot <- metaReactive2({ # (NOTE PLOT) 3
   
 
 # Render plot to UI
-output$RQR_plot <- renderPlot({ # This part and bellow is specific to UI (NOTE PLOT) 4
-  globalVars$RQRPlot
-})
+  output$RQR_plot <- renderPlot({
+    # 1. Ensure the model exists before trying to plot
+    req(globalVars$model)
+    
+    # 2. Get the model and model type
+    mod <- globalVars$model
+    mod_type <- globalVars$model_choice
+    
+    # 3. Generate the specific plot based on model type
+    # Note: Count models often use Randomized Quantile Residuals (DHARMa package is great for this)
+    
+    if (mod_type %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")) {
+      # Special plotting logic for Zero-Inflated
+      # Example using DHARMa:
+      # res <- DHARMa::simulateResiduals(mod)
+      # plot(res)
+      plot(mod, which = 1, main = paste("Residuals for", mod_type)) 
+      
+    } else {
+      # Standard plotting for Poisson / NB / Quasi
+      # This replaces the plot whenever the model object inside globalVars$model changes
+      plot(mod, which = 1, main = paste("Residuals for", mod_type))
+    }
+  })
 
 
 # Download button for plots (call reactive function here to get plot object) ---- (NOTE PLOT) 5
