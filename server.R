@@ -837,6 +837,7 @@ server <- (function(input, output, session){
       subbed <- str_replace_all(input$equation,fixed("+"),"~")
       subbed <- str_replace_all(subbed,fixed("*"),"~")
       subbed <- str_replace_all(subbed,fixed(":"),"~")
+      subbed <- str_replace_all(subbed,fixed("|"),"~")
       variables <- trimws(str_split(string = subbed, pattern = "~", simplify = T))
       
       if(length(variables)>=2 && variables[2]!=""){
@@ -914,11 +915,7 @@ server <- (function(input, output, session){
     if(globalVars$changed.input){
       run <- checkEquationValidity()
       
-      
-      
       if(run){
-       # print(head(globalVars$dataset)) # Shows the first 6 rows
-        
         
         # Try to fit model
         model <- tryCatch({
@@ -929,15 +926,12 @@ server <- (function(input, output, session){
                         "Poisson" = glm(form, data = dat, family = poisson(link = "log")),
                         "Quasi-Poisson" = glm(form, data = dat, family = quasipoisson(link = "log")),
                         "Negative Binomial" = MASS::glm.nb(form, data = dat),
-                        "Zero-Inflated Poisson" = pscl::zeroinfl(form, data = dat, dist = "poisson"),
+                        "Zero-Inflated Poisson" = pscl::zeroinfl(form, data = dat, dist = "poisson"), # Crashes
                         "Zero Inflated Negative Binomial" = pscl::zeroinfl(form, data = dat, dist = "negbin"),
                         "Tweedie" = glm(form, data = dat, family = statmod::tweedie(1.5, 0)),
                         # Default fallback
                         glm(form, data = dat, family = poisson(link = "log")) 
           )
-          
-          
-        #  model<-glm((as.formula(globalVars$equation)), data=globalVars$dataset)
           
           # Change the call to have the full formula -- this is imporant for later. It is usually unnecessary but it is important
           # for the emmeans code -- this is how it checks whether a log transformation was used.
@@ -947,15 +941,12 @@ server <- (function(input, output, session){
                   FUNC = as.name(if(choice %in% c("Poisson", "Quasi-Poisson", "Tweedie")) "glm" else 
                                  if(choice == "Negative Binomial") "glm.nb" else "zeroinfl"),
                   F_VAL = form,
-                  D_VAL = quote(dataset),
-                  # Pass family only if it's a standard GLM
+                  D_VAL = quote(dataset),# maybe issue
                   FAM_VAL = if(choice == "Poisson") quote(poisson(link="log")) else 
                             if(choice == "Quasi-Poisson") quote(quasipoisson(link="log")) else
                             if(choice == "Tweedie") quote(statmod::tweedie(1.5, 0)) else NULL
                 )
               )
-              
-              # Clean up the call if family was NULL (for zeroinfl/glm.nb)
           if(is.null(model$call$family)) model$call$family <- NULL
           
           model
@@ -993,7 +984,7 @@ server <- (function(input, output, session){
         })
         
         
-        
+
         # 1. Check if model is NULL first
         if (is.null(model)) {
           print("DEBUG: Model object is NULL!")
@@ -1021,9 +1012,6 @@ server <- (function(input, output, session){
         }
         
       }
-      
-      #         globalVars$modelsummary <- prepare_model_summary()
-
       
       
       
@@ -1056,11 +1044,8 @@ server <- (function(input, output, session){
           NULL
         })
         
-    
+        globalVars$make_check_plot <- make_check_plot()
         
-        
-        
-    
         
         showAllTabs()
         updateTabsetPanel(session, "workPanel", selected = "assumptions")
@@ -1083,10 +1068,8 @@ server <- (function(input, output, session){
     
   })
   
-  # From here we might be by ourselves
-  
-  
-  
+
+
   #############################################################################################
   # Model Summary
   #############################################################################################
@@ -1407,8 +1390,7 @@ RQRPlot <- metaReactive2({ # (NOTE PLOT) 3
   
   })
   
-#  browser() we use this to pause app at a part to help debug
-  
+
     
 })
   
@@ -1483,6 +1465,255 @@ observeEvent(input$code_RQR, {
 
 
 
-}
+
+#############################################################################################
+# Leverage and Outliers
+#############################################################################################
+# Code check plot
+make_check_plot <- metaReactive2({
+  req(globalVars$model)
+  
+  model<-globalVars$model
+  metaExpr({
+    "####################################"
+    "# Create Data for Leverage Plot"
+    "####################################"
+    d <- model$model 
+    n <- nrow(d)
+    p <- length(coef(model))
+    d <- d %>% mutate(obs = 1:n)
+    ggdat <- d %>% mutate(h.values = hatvalues(model))
+    
+    "####################################"
+    "# Create Leverage Plot"
+    "####################################"
+    p1<-ggplot(data=ggdat,aes(x=obs)) +
+      geom_linerange(aes(ymin=0, ymax=h.values)) +
+      theme_bw()+
+      xlab("Observation Number")+
+      ylab("Leverage")+
+      geom_hline(yintercept =2*p/n, linetype="dotted", color="orange",size=.75)+
+      geom_hline(yintercept =3*p/n, linetype="dotted", color="red",size=.75)
+    
+    "####################################"
+    "# Create Data for Cook's D Plot"
+    "####################################"
+    ggdat <- d %>% mutate(cook.d = cooks.distance(model))
+    "####################################"
+    "# Create Cook's D Plot"
+    "####################################"
+    p2<-ggplot(data=ggdat, aes(x=obs)) +
+      geom_linerange(aes(ymin=0, ymax=cook.d)) +
+      theme_bw()+
+      theme(axis.text.x = element_text(angle=60, vjust=1, hjust=1))+
+      xlab("Observation Number")+
+      ylab("Cook's Distance")+
+      geom_hline(yintercept = qf(p=0.10, df1=p, df2=n-p), linetype="dotted", color="orange",size=.75)+
+      geom_hline(yintercept = qf(p=0.50, df1=p, df2=n-p), linetype="dotted", color="red",size=.75)
+    
+    "####################################"
+    "# Create Data for DFFITS Plot"
+    "####################################"
+    ggdat <- d %>% mutate(dffits=dffits(model))
+    "####################################"
+    "# Create DFFITS Plot"
+    "####################################"
+    p3<-ggplot(data=ggdat, aes(x=obs)) +
+      geom_linerange(aes(ymin=0, ymax=dffits)) +
+      theme_bw()+
+      xlab("Observation Number")+
+      ylab("DFFITs")+
+      geom_hline(yintercept = c(-2*sqrt(p/n), 2*sqrt(p/n)),
+                 linetype="dotted",
+                 size=.75,
+                 color="orange")+
+      geom_hline(yintercept = c(-2,2),
+                 linetype="dotted",
+                 size=.75,
+                 color="red")
+    
+    "####################################"
+    "# Create Data for Residual Plot"
+    "####################################"
+    ggdat<-data.frame(obs=d$obs,
+                      y=rstudent(model))
+    ggdat.out2<-ggdat %>% filter(abs(y)>2)
+    ggdat.out3<-ggdat %>% filter(abs(y)>3)
+    
+    "####################################"
+    "# Create Residual Plot"
+    "####################################"
+    p4<-ggplot(data=ggdat,aes(x=obs,y=y))+
+      geom_point(shape=1)+
+      geom_hline(yintercept = 0,color="red",linetype="dashed")+
+      xlab("Observation Number")+
+      ylab("Studentized Residual")+
+      theme_bw()+
+      geom_hline(yintercept = c(-3,3), color="red", linetype="dotted",size=0.75)+
+      geom_hline(yintercept = c(-2,2), color="orange", linetype="dotted",size=0.75)+
+      geom_point(data=ggdat.out2, aes(x=obs,y=y), fill="orange", shape=21)+
+      geom_point(data=ggdat.out3, aes(x=obs,y=y), fill="red", shape=21)
+    
+    "####################################"
+    "# Print Plots"
+    "####################################"
+    (p1|p2)/(p3|p4)
+  })
+},inline=TRUE)
+
+# Render plot to UI
+output$check_plot <- renderPlot({
+  globalVars$make_check_plot
+})
+
+# Download button for plot
+output$downloadcheckPlot <- downloadHandler(
+  filename = function() { paste('checkplots.', input$check_plot_format, sep='') },
+  content = function(file) {
+    ggsave(file, plot = globalVars$make_check_plot, device = input$check_plot_format, 
+           height = as.numeric(input$check_plot_height), width = as.numeric(input$check_plot_width), 
+           units = input$check_plot_units)
+  }
 )
 
+
+# Rcode
+observeEvent(input$code_check, {
+  code <- expandChain(
+    "# Ensure to load your data as an object called dat.",
+    quote({
+      library(tidyverse) 
+      library(patchwork)
+    }),
+    "####################################",
+    "# Load Data",
+    "####################################",
+    read_data(),
+    refactor_data(),
+  #  prepare_transformed_data(),
+  #  prepare_scaled_data(),
+    fitmodel(),
+    make_check_plot()
+  )
+  
+  displayCodeModal(
+    code, 
+    title = "Regression Leverage-Outlier-Influence Plot",
+    size = "l", 
+    fontSize = 16,
+    clip=NULL
+  )
+})
+
+prepare_anova <- metaReactive2({
+  
+  req(globalVars$model)
+  dat <- globalVars$dataset
+  model <- globalVars$model
+  
+  coef.table <- data.frame(summary(model)$coefficients)
+  int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
+  
+  if(nrow(int.table)>0 && any(int.table[4]<0.05)){ # significant interaction
+    metaExpr({
+      "####################################"
+      "# ANOVA Table"
+      "####################################" 
+      anova.table <- data.frame(Anova(model, type="III"))
+      "####################################"
+      "# Clean Up Labels for Printing"
+      "####################################"
+      anova.table <- anova.table %>%
+        mutate("Term" = rownames(.)) %>% # make terms part of table
+        relocate(Term) %>%               # put Term in first column
+        mutate(EffectSize= c(NA, epsilon_squared(model)[,2], NA)) %>%
+        set_rownames(NULL) %>%
+        set_colnames(c("Term", "SS (Type III)", "df", "F", "p-value", "Partial Epsilon-Squared"))
+      
+    })
+  }else{
+    if(deviance(model) < sqrt(.Machine$double.eps)){
+      metaExpr({
+        "####################################"
+        "# ANOVA Table"
+        "# Manual calc. due to perfect fit"
+        "####################################" 
+        aov.summary <- summary(aov(model))[[1]]
+        inds <- trimws(rownames(aov.summary)[-nrow(aov.summary)])
+        for(i in 1:length(inds)){
+          aov.formula <- as.formula(paste(all.vars(model$call)[1], "~ ", paste(c(inds[-i], inds[i]), 
+                                                                               collapse = "+")))
+          aov.curr <- lm(aov.formula, data=dat)
+          aov.summary[i,] = summary(aov(aov.curr))[[1]][length(inds),]
+        }
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        anova.table <- data.frame(aov.summary) %>%
+          mutate("Term" = rownames(.)) %>% # make terms part of table
+          mutate(EffectSize= c(epsilon_squared(model)[,2], NA)) %>%
+          set_rownames(NULL) %>%
+          dplyr::select(Term, Sum.Sq, Df, F.value, Pr..F., EffectSize) %>%               # put Term in first column
+          set_colnames(c("Term", "SS (Type II)", "df", "F", "p-value", "Partial Epsilon-Squared")) %>%
+          mutate_at(c("SS (Type II)", "df", "F", "p-value", "Partial Epsilon-Squared"), as.numeric)
+      })
+    }else{
+      metaExpr({
+        "####################################"
+        "# ANOVA Table"
+        "####################################" 
+        anova.table <- data.frame(Anova(model, type="II"))
+        
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        anova.table <- anova.table %>%
+          mutate("Term" = rownames(.)) %>% # make terms part of table
+          relocate(Term) %>%                   # put Term in first column
+          mutate(EffectSize= c(epsilon_squared(model)[,2], NA)) %>%
+          set_rownames(NULL) %>%
+          set_colnames(c("Term", "SS (Type II)", "df", "F", "p-value", "Partial Epsilon-Squared")) 
+      }) 
+    }
+  }
+  
+}, inline=TRUE)
+
+
+
+############################################################################
+# HANDLE CHECKING FOR OBSERVATIONS
+############################################################################
+observeEvent(input$check_obs, {
+  shinyjs::show("check_note")
+  
+  if(input$check_1 == TRUE && input$check_2 == TRUE && input$check_3 == TRUE && input$check_4 == TRUE){
+    discuss_text <- "The model likely isn't affected by outliers or high-leverage points. Please proceed to the next step."
+    output$check_note <- renderText(discuss_text)
+  } else{
+    discuss_text <- "There are observations that might have an outsized effect on the model fit. You may want to consider using a weighted regression or quantile regression model."
+    output$check_note <- renderText(discuss_text)
+  }
+  
+})
+
+
+
+
+
+
+
+
+
+
+
+})
+#NOTE: HI LEO!
+#Alright leo, just wanna add this here cuz I spent about 2 hrs cross-referencing his code with ours
+# 1. He appears to have an input dataframe/tibble that I can't seem to find the source for. 
+# 2. We have code for unchecking the assumption boxes, but those don't seem to exist. I wanna run that by ya first
+# because that's gonna be a massive code update. Tmr, I'll see if I can make a branch to experiment with some stuff, but that's
+# a whole can of worms that I'll need about 2-3 hours to start deciphering ngl
+# 3. In his model, there's several things in UI that check and uncheck the boxes, which are then used as boolean values in server (which is weird)
+# Look for anything that uses the "CheckboxInput()" function in his code. We do have a few instances in our code too.
+# 4. In his code, there is one confusing bit with the checkbox inputs, and that's that I never see it updated to true. Im gonna ask him on Monday abt it.
