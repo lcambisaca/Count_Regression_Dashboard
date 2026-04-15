@@ -1435,7 +1435,8 @@ RQRPlot <- metaReactive2({ # (NOTE PLOT) 3
     } else {
       # Standard plotting for Poisson / NB / Quasi
       # This replaces the plot whenever the model object inside globalVars$model changes
-      plot(mod, which = 1, main = paste("Residuals for", mod_type))
+      req(globalVars$RQRPlot) # Don't try to plot if it hasn't been created yet
+      globalVars$RQRPlot
     }
   })
 
