@@ -786,6 +786,7 @@ server <- (function(input, output, session){
       globalVars$model_choice <- input$model_choice
       print(paste("Selected Model:", globalVars$model_choice))
       
+      updateFactorsSelectize()
       hideInteractionInput()
       emptyEquation()
       uncheckAllAssumptions()
@@ -813,10 +814,10 @@ server <- (function(input, output, session){
 
     # Remove the old tooltip and add the new one ask prof this is SHAWWWW
     
-    removeTooltip(session, "equation")
-
-    addTooltip(session, id = "equation", title = tip_message, 
-               placement = "right", trigger = "hover")
+    shinyjs::runjs(sprintf(
+      "$('#equation').attr('data-original-title', '%s').tooltip('fixTitle');", 
+      tip_message
+    ))
     
   })
   

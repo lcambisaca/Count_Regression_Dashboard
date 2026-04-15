@@ -176,8 +176,8 @@ ui <- tagList(
                                               multiple = TRUE)),
                         
                         textInput("equation", "Enter your desired regression equation:"),
-                        #bsTooltip(id = "equation", title = "This is an input",
-                         #         placement = "right", trigger = "hover"),
+                        bsTooltip(id = "equation", title = "This is an input",
+                              placement = "right", trigger = "hover"),
                         checkboxInput("scalevars", "Scale all variables (standardize)", FALSE), #need to see if user wabrs to scale and do so if yes need to implement
                         numericInput("alpha", "Significance level (\u03B1): ", value = 0.05, step = 0.001, min = 0, max = 1),     # alpha level need to adjust if user wants to
                         div(class = "text-center", actionButton("DoCompute", "Compute Model Output")), #DoCompute id for button
