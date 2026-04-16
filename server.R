@@ -80,6 +80,20 @@ server <- (function(input, output, session){
   
   globalVars$scaleDataUpToDate <- FALSE
   
+  
+  observe({
+    session$onFlushed(function() {
+      shinyjs::runjs("
+      $('#equation')
+        .attr('data-original-title', 'Example: response ~ x1 + x2')
+        .tooltip({
+          trigger: 'hover',
+          placement: 'right'
+        });
+    ")
+    }, once = TRUE)
+  })
+  
   shinyjs::hide("interaction_analysis")
   shinyjs::hide("var_inter")
   shinyjs::hide("var_moderator")
@@ -775,7 +789,16 @@ server <- (function(input, output, session){
   #############################################################################################
   # When a new model selected
   #############################################################################################  
-    
+  observe({
+    session$onFlushed(function() {
+      shinyjs::runjs("
+      $('#equation').tooltip({
+        trigger: 'hover',
+        placement: 'right'
+      });
+    ")
+    }, once = TRUE)
+  })
     #(NOTE MODEL DROPDOWN) Hi leo this is a skeleton of the code we'll need for the dropdown menu. I alr changed the var name to input$model_choice
     #if you need to see what I did in ui, just ctrl + f and type "shaw shaw" (without the quotes).
     
@@ -814,10 +837,9 @@ server <- (function(input, output, session){
 
     # Remove the old tooltip and add the new one ask prof this is SHAWWWW
     
-    shinyjs::runjs(sprintf(
-      "$('#equation').attr('data-original-title', '%s').tooltip('fixTitle');", 
-      tip_message
-    ))
+    shinyjs::runjs(sprintf("
+  $('#equation').attr('data-original-title', '%s').tooltip('update');
+", tip_message))
     
   })
   
@@ -1485,4 +1507,12 @@ observeEvent(input$code_RQR, {
 
 }
 )
-
+#NOTE: HI LEO!
+#Alright leo, just wanna add this here cuz I spent about 2 hrs cross-referencing his code with ours
+# 1. He appears to have an input dataframe/tibble that I can't seem to find the source for. 
+# 2. We have code for unchecking the assumption boxes, but those don't seem to exist. I wanna run that by ya first
+# because that's gonna be a massive code update. Tmr, I'll see if I can make a branch to experiment with some stuff, but that's
+# a whole can of worms that I'll need about 2-3 hours to start deciphering ngl
+# 3. In his model, there's several things in UI that check and uncheck the boxes, which are then used as boolean values in server (which is weird)
+# Look for anything that uses the "CheckboxInput()" function in his code. We do have a few instances in our code too.
+# 4. In his code, there is one confusing bit with the checkbox inputs, and that's that I never see it updated to true. Im gonna ask him on Monday abt it.
