@@ -143,7 +143,7 @@ server <- (function(input, output, session){
       filename <- case_when(input$sample_data_choice=="Bracht et al. MFAP4"                             ~ "BrachtMFAP4Data",
                             input$sample_data_choice=="Palmer Penguins"                                 ~ "PalmerPenguin",
                             input$sample_data_choice=="U.S. News College Data"                          ~ "College",
-                            input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data",
+                            input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data"
       )
       
       DT::datatable(
@@ -166,7 +166,7 @@ server <- (function(input, output, session){
   observeEvent(input$file_upload,{ # check to see if this specefic var gets changed this occurs first
     globalVars$changed.input <- TRUE
     #upload data and preview
-    inFile <<- upload_data() # saved to global var
+    inFile <- upload_data() # saved to global var
     #clear everything else
     hideInteractionInput()
     
@@ -385,7 +385,7 @@ server <- (function(input, output, session){
       shinyjs::hide("choose_sample")
       
       if(!is.null(input$file_upload)){
-        inFile <<- upload_data() # Weird this is used
+        inFile <- upload_data() # Weird this is used
         shinyjs::show("select_factors")
         updateFactorsSelectize()
         
@@ -1597,9 +1597,6 @@ output$downloadcheckPlot <- downloadHandler(
            units = input$check_plot_units)
   }
 )
-<<<<<<< HEAD
-=======
-
 
 # Rcode
 observeEvent(input$code_check, {
