@@ -1712,7 +1712,7 @@ observeEvent(input$check_obs, {
     discuss_text <- "The model likely isn't affected by outliers or high-leverage points. Please proceed to the next step."
     output$check_note <- renderText(discuss_text)
   } else{
-    discuss_text <- "There are observations that might have an outsized effect on the model fit. You may want to consider using a weighted regression or quantile regression model."
+    discuss_text <- "There are observations that might have an outsized effect on the model fit. Please re-evaluate the data and determine if the influential and/or outlying points are relevant to the data."
     output$check_note <- renderText(discuss_text)
   }
   
