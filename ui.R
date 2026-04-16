@@ -271,7 +271,39 @@ ui <- tagList(
                                                        
                                              )
                                     ),
-                                    tabPanel("Outliers", value = "checks"),
+                                    tabPanel("Outliers", value = "checks",
+                                             fluidPage(h1("Outliers, Influential, and Leverage Points"),
+                                                       fluidRow(
+                                                         column(4, style = "background-color:#ecf0f1;", tags$hr(), br(),
+                                                                h4("Make sure to evaluate whether there are outliers or influential points:"), br(),
+                                                                # Assumption 1
+                                                                checkboxInput("check_1", HTML("Few/no observations with large leverage values."), FALSE),
+                                                                # Assumption 2
+                                                                checkboxInput("check_2", "Few/no observations with large Cook's distance values.", FALSE),
+                                                                # Assumption 3
+                                                                checkboxInput("check_3", "Few/no observations with DFFITS with large magnitude.", FALSE),
+                                                                # Assumption 4
+                                                                checkboxInput("check_4", "Few/no observations with outlying residuals."),
+                                                                br(),
+                                                                actionButton("check_obs", strong("Check Observations")), br(), br(),    # Button to check all assumptions
+                                                                hidden(div(id='check_note', htmlOutput('check_note')))
+                                                         ),
+                                                         column(8,
+                                                                fluidRow(actionButton("code_check", "R code", icon("code")), style = "margin-left: 20px;"),
+                                                                br(),   # Show code using shinymeta pkg
+                                                                fluidRow(shinycssloaders::withSpinner(plotOutput("check_plot")), style = "margin-left: 20px;"), 
+                                                                fluidRow(
+                                                                  column(width=2, textInput("check_plot_height", "Enter Height", value=7)),
+                                                                  column(width=2, textInput("check_plot_width", "Enter Width", value=7)),
+                                                                  column(width=2, selectInput("check_plot_units", "Units", choices = c("in", "cm"))),
+                                                                  column(width=2, selectInput("check_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                                  column(width=2, downloadButton('downloadcheckPlot'),style = "margin-top: 25px;"), #
+                                                                  tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                                )
+                                                         )
+                                                       )
+                                             )
+                                    ),
                                     tabPanel("Plots", value = "plot",
                                              fluidPage(tags$hr(),
                                                        h1("RQR Plot for Pearson"),

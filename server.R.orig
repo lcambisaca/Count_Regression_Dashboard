@@ -1732,7 +1732,7 @@ observeEvent(input$check_obs, {
 
 
 })
-
+>>>>>>> 4f12319c8b2b5c8b3481a6237bf44fc59d616a92
 #NOTE: HI LEO!
 #Alright leo, just wanna add this here cuz I spent about 2 hrs cross-referencing his code with ours
 # 1. He appears to have an input dataframe/tibble that I can't seem to find the source for. 
