@@ -9,7 +9,6 @@ server <- (function(input, output, session){
   globalVars$dataset <- NULL
   globalVars$dataset.original <- NULL
   globalVars$fcts <- c()                 # Tracking Categorical Variables
-  globalVars$transform.type <- "none"
   globalVars$interactions = c()
   
   
@@ -487,8 +486,6 @@ server <- (function(input, output, session){
     uncheckAllAssumptions()
   })
   
-  ## Will look at transforming later for now wanted to scale in server 276- 387
-  
 
   ##############################################################################
   # HANDLE SCALE VARIABLES AND TRANSFORMATION COLLISION
@@ -647,7 +644,7 @@ server <- (function(input, output, session){
           
         } else if (mod_type == "Zero-Inflated Poisson") {
           # Requires library(pscl)
-          quote(pscl::zeroinfl(formula, data = dat, dist = "poisson"))
+          quote(pscl::zeroinfl(formula, data = dat, dist = "poisson")) #Might change formula remove pscl
           
         } else if (mod_type == "Zero Inflated Negative Binomial") {
           # Requires library(pscl)
@@ -865,15 +862,6 @@ server <- (function(input, output, session){
       if(length(variables)>=2 && variables[2]!=""){
         globalVars$response <- variables[1]
         
-        if(!(substr(globalVars$response, start=0, stop=16) %in% c("ihs.transformed.", "log.transformed.", "lp1.transformed."))){
-          globalVars$transform.type <- "none"
-          
-          globalVars$dataset <- globalVars$dataset %>%
-            dplyr::select(-starts_with("ihs.transformed.")) %>%
-            dplyr::select(-starts_with("log.transformed.")) %>%
-            dplyr::select(-starts_with("lp1.transformed."))
-        }
-        
         globalVars$equation <- input$equation
         
         #Check for misspellings 
@@ -1038,11 +1026,37 @@ server <- (function(input, output, session){
       
       
       if(run){ # NOTE THIS IS WHERE ALL PLOTS AND THINGS HAPPEN
-        showModal(modalDialog("Things are happening in the background!", footer=NULL))
-        globalVars$model <- model
+       
         
+         showModal(modalDialog("Things are happening in the background!", footer=NULL))
+       
+        
+        globalVars$model <- model
         globalVars$modelsummary <- prepare_model_summary()
-        globalVars$make_model_summary <- make_model_summary()
+       # globalVars$prepare_model_interp <- prepare_model_interp()
+        
+        
+        globalVars$anova <- prepare_anova()
+      #  globalVars$prepare_anova_interp <- prepare_anova_interp()
+        
+        ### Show factor outputs, if necessary
+        fct.vars <- names(which(attr(model$terms, "dataClasses")=="factor"))
+        if(length(fct.vars)>=1){
+          globalVars$anova_fctcomp <- prepare_anova_fctcomp()
+          globalVars$make_anovafctcomp_plot <- make_anovafctcomp_plot()
+          globalVars$make_anovafctcomp_num <- make_anovafctcomp_num()
+          globalVars$prepare_anova_fctcompinterp <- prepare_anova_fctcompinterp()
+          shinyjs::show("anova_fctcomp")
+        }else{
+          shinyjs::hide("anova_fctcomp")
+        }
+        
+        
+        
+        globalVars$make_ggpairs_plot <- make_ggpairs_plot()
+        globalVars$make_ggpairs_summary <- make_ggpairs_summary()
+        
+        
         
         
         globalVars$RQRPlot <- tryCatch({ # (NOTE PLOT) 2 
@@ -1066,11 +1080,15 @@ server <- (function(input, output, session){
           NULL
         })
         
-        globalVars$make_check_plot <- make_check_plot()
-        
+        globalVars$make_check_plot <- make_check_plot() #Checks Outliers
+        globalVars$make_anova_num <- make_anova_num()
+        globalVars$make_model_summary <- make_model_summary()
+
         
         showAllTabs()
         updateTabsetPanel(session, "workPanel", selected = "assumptions")
+        
+        # Now should ad interactions
         removeModal()
         # Hide tabs and do nothing further if model is not fit
         globalVars$changed.input <-FALSE
@@ -1277,8 +1295,7 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      # prepare_transformed_data(), still gotta think abt this
-      #  prepare_scaled_data(),
+      prepare_scaled_data(),
       fitmodel(),
       ZeroInflated()
     )
@@ -1344,8 +1361,7 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      # prepare_transformed_data(), still gotta think abt this
-      #  prepare_scaled_data(),
+      prepare_scaled_data(),
       fitmodel(),
       Pearson_Residual()
     )
@@ -1469,8 +1485,7 @@ observeEvent(input$code_RQR, {
     "####################################",
     read_data(),
     refactor_data(),
-   # prepare_transformed_data(), still gotta think abt this
-  #  prepare_scaled_data(),
+    prepare_scaled_data(),
     fitmodel(),
     RQRPlot()
   )
@@ -1611,8 +1626,7 @@ observeEvent(input$code_check, {
     "####################################",
     read_data(),
     refactor_data(),
-  #  prepare_transformed_data(),
-  #  prepare_scaled_data(),
+    prepare_scaled_data(),
     fitmodel(),
     make_check_plot()
   )
@@ -1626,79 +1640,6 @@ observeEvent(input$code_check, {
   )
 })
 
-prepare_anova <- metaReactive2({
-  
-  req(globalVars$model)
-  dat <- globalVars$dataset
-  model <- globalVars$model
-  
-  coef.table <- data.frame(summary(model)$coefficients)
-  int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
-  
-  if(nrow(int.table)>0 && any(int.table[4]<0.05)){ # significant interaction
-    metaExpr({
-      "####################################"
-      "# ANOVA Table"
-      "####################################" 
-      anova.table <- data.frame(Anova(model, type="III"))
-      "####################################"
-      "# Clean Up Labels for Printing"
-      "####################################"
-      anova.table <- anova.table %>%
-        mutate("Term" = rownames(.)) %>% # make terms part of table
-        relocate(Term) %>%               # put Term in first column
-        mutate(EffectSize= c(NA, epsilon_squared(model)[,2], NA)) %>%
-        set_rownames(NULL) %>%
-        set_colnames(c("Term", "SS (Type III)", "df", "F", "p-value", "Partial Epsilon-Squared"))
-      
-    })
-  }else{
-    if(deviance(model) < sqrt(.Machine$double.eps)){
-      metaExpr({
-        "####################################"
-        "# ANOVA Table"
-        "# Manual calc. due to perfect fit"
-        "####################################" 
-        aov.summary <- summary(aov(model))[[1]]
-        inds <- trimws(rownames(aov.summary)[-nrow(aov.summary)])
-        for(i in 1:length(inds)){
-          aov.formula <- as.formula(paste(all.vars(model$call)[1], "~ ", paste(c(inds[-i], inds[i]), 
-                                                                               collapse = "+")))
-          aov.curr <- lm(aov.formula, data=dat)
-          aov.summary[i,] = summary(aov(aov.curr))[[1]][length(inds),]
-        }
-        "####################################"
-        "# Clean Up Labels for Printing"
-        "####################################"
-        anova.table <- data.frame(aov.summary) %>%
-          mutate("Term" = rownames(.)) %>% # make terms part of table
-          mutate(EffectSize= c(epsilon_squared(model)[,2], NA)) %>%
-          set_rownames(NULL) %>%
-          dplyr::select(Term, Sum.Sq, Df, F.value, Pr..F., EffectSize) %>%               # put Term in first column
-          set_colnames(c("Term", "SS (Type II)", "df", "F", "p-value", "Partial Epsilon-Squared")) %>%
-          mutate_at(c("SS (Type II)", "df", "F", "p-value", "Partial Epsilon-Squared"), as.numeric)
-      })
-    }else{
-      metaExpr({
-        "####################################"
-        "# ANOVA Table"
-        "####################################" 
-        anova.table <- data.frame(Anova(model, type="II"))
-        
-        "####################################"
-        "# Clean Up Labels for Printing"
-        "####################################"
-        anova.table <- anova.table %>%
-          mutate("Term" = rownames(.)) %>% # make terms part of table
-          relocate(Term) %>%                   # put Term in first column
-          mutate(EffectSize= c(epsilon_squared(model)[,2], NA)) %>%
-          set_rownames(NULL) %>%
-          set_colnames(c("Term", "SS (Type II)", "df", "F", "p-value", "Partial Epsilon-Squared")) 
-      }) 
-    }
-  }
-  
-}, inline=TRUE)
 
 
 
@@ -1720,22 +1661,556 @@ observeEvent(input$check_obs, {
 
 
 
+#############################################################################################
+# Scatterplot Matrix
+#############################################################################################
+# Code to create plot
+make_ggpairs_plot <- metaReactive2({
+  req(globalVars$model)
+  model<-globalVars$model
+  metaExpr({
+    "####################################"
+    "# Create Pairwise Plots"
+    "####################################"
+    # problem: switch cor and points below
+    # problem: can we make discrete a better plot? (mosaic?)
+    upper <- list(continuous = "points", discrete = wrap("colbar", size = 0), combo = "box_no_facet", na = "na")
+    lower <- list(continuous = "cor", discrete = wrap("colbar", size = 0), combo = "box_no_facet", na = "na")
+    ggpairs(model$model, progress = F, upper = upper, lower = lower) +
+      theme_bw()+
+      theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
+      scale_fill_grey()+
+      scale_color_grey()
+  })
+},inline=TRUE)
+
+# Render plot to UI
+output$ggpairs_plot<- renderPlot({
+  globalVars$make_ggpairs_plot
+})
+
+# Download button for plots (call reactive function here to get plot object) ----
+output$downloadggpairsPlot <- downloadHandler(
+  filename = function() { paste('pairwiseplots.',input$ggpairs_plot_format, sep='') },
+  content = function(file) {
+    ggsave(file, plot = globalVars$make_ggpairs_plot, device = input$ggpairs_plot_format, 
+           width = as.numeric(input$ggpairs_plot_width), height = as.numeric(input$ggpairs_plot_height), 
+           units = input$ggpairs_plot_units)
+  }
+)
 
 
+refactor_data <- metaReactive2({
+  if(length(input$select_factors) > 0){
+    metaExpr({
+      "####################################"
+      "# Specify factor variables"
+      "####################################"
+      dat <- dat %>%
+        mutate(across(..(input$select_factors), as.factor))
+    })
+  }
+},inline=TRUE)
+
+# R Code
+observeEvent(input$code_ggpairsplot, {
+  code <- expandChain(
+    "# Ensure to load your data as an object called dat",
+    quote({
+      library(GGally)
+      library(tidyverse)
+      #library(ggforce)
+    }),
+    "####################################",
+    "# Load Data",
+    "####################################",
+    read_data(),
+    refactor_data(),
+    prepare_scaled_data(),
+    fitmodel(),
+    make_ggpairs_plot()
+  )
+  
+  displayCodeModal(
+    code, 
+    title = "Pairwise Plots",
+    size = "l", 
+    fontSize = 16,
+    clip=NULL
+  )
+})
+
+#############################################################################################
+# Correlation Matrix
+#############################################################################################
+# Code to create table
+make_ggpairs_summary <- metaReactive2({
+  req(globalVars$model)
+  model<-globalVars$model
+  
+  metaExpr({
+    "####################################"
+    "# Create Data for Correlation Matrix"
+    "####################################"
+    modmatrix <- model$model %>% 
+      select_if(is.numeric)
+    cormats<-Hmisc::rcorr(as.matrix(modmatrix), type = "pearson")
+    cormat<-round(cormats$r,4)
+    pmat<-as.matrix(data.frame(stars.pval(cormats$P)))
+    "####################################"
+    "# Create Correlation Matrix"
+    "####################################"
+    cormat<-matrix(paste(cormat, pmat, sep=""),nrow(cormats$r),ncol(cormats$r))
+    rownames(cormat)<-colnames(cormats$r)
+    colnames(cormat)<-rownames(cormats$r)
+    data.frame(cormat)
+  })
+},inline=TRUE)
+
+# Render table to UI
+output$ggpairs_summary <- DT::renderDataTable({
+  globalVars$make_ggpairs_summary
+},
+extensions = 'Buttons',
+options = list(
+  dom = 'Bfrtip',
+  buttons = 
+    list("copy", "print", list(
+      extend = "collection",
+      buttons = list(
+        list(extend="csv", filename="model-correlations"),
+        list(extend="excel", filename="model-correlations"),
+        list(extend="pdf", filename="model-correlations")
+      ),
+      text = "Download",
+      filename = "model-correlations"
+    ))
+), rownames = FALSE)
+
+# Download button for summary (LaTeX version)----
+output$downloadcormatLatex <- downloadHandler(
+  filename = function() {
+    paste("model-correlations.tex", sep="")
+  },
+  content = function(file) {
+    base::print(xtable(globalVars$make_ggpairs_summary, digits = 4), file, type = "latex")
+  }
+)
+
+#Rcode
+observeEvent(input$code_corrmat, {
+  code <- expandChain(
+    "# Ensure to load your data as an object called dat.",
+    quote({
+      library(gtools)
+      library(Hmisc)
+      library(tidyverse)
+    }),
+    "####################################",
+    "# Load Data",
+    "####################################",
+    read_data(),
+    refactor_data(),
+    prepare_scaled_data(),
+    fitmodel(),
+    make_ggpairs_summary()
+  )
+  
+  displayCodeModal(
+    code, 
+    title = "Correlation Matrix",
+    size = "l", 
+    fontSize = 16,
+    clip=NULL
+  )
+})
 
 
+# Safe extraction for both GLM and Zero-Inflated models
+#if (inherits(model, "zeroinfl")) {
+# Combine both 'count' and 'zero' parts to check for interactions
+#  coef_list <- summary(model)$coefficients
+#  coef_summary <- rbind(coef_list$count, coef_list$zero)
+#} else {
+#  coef_summary <- as.data.frame(summary(model)$coefficients)
+#}
+
+#############################################################################################
+# Model ANOVA Table
+#############################################################################################
+# Code for model summary table
+
+prepare_anova <- metaReactive2({
+  
+  req(globalVars$model)
+  dat <- globalVars$dataset
+  model <- globalVars$model
+  
+  coef.table <- data.frame(summary(model)$coefficients) #Zip Gonna
+  int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
+
+  if(nrow(int.table)>0 && any(int.table[4]<0.05)){ #significant interaction
+    metaExpr({
+      "####################################"
+      "# ANOVA Table"
+      "####################################" 
+      anova.table <- Anova(model, type = "III", test = "LR")
+      null_deviance <- mod.nb2a$null.deviance
+      
+      "####################################"
+      "# Clean Up Labels for Printing"
+      "####################################"
+      
+      
+      anova.table <- as.data.frame(anova.table) %>%
+        mutate(Term = rownames(.)) %>%
+        relocate(Term) %>%
+        mutate(`Partial McFadden R2` = `LR Chisq` / null_deviance)%>%
+        rename(`p-value` = `Pr(>Chisq)`) %>%
+        mutate(`p-value` = if_else(`p-value` < 0.0001, 
+                                   "<0.0001", 
+                                   as.character(round(`p-value`, 4)))) %>%
+        set_colnames(c("Term","LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2")) %>%
+        set_rownames(NULL)
+    })
+  }else{
+      metaExpr({
+        "####################################"
+        "# ANOVA Table"
+        "####################################" 
+        anova.table <- Anova(model, type = "II", test = "LR")
+        null_deviance <- mod.nb2a$null.deviance
+        
+
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        anova.table <- as.data.frame(anova.table) %>%
+          mutate(Term = rownames(.)) %>%
+          relocate(Term) %>%
+          mutate(`Partial McFadden R2` = `LR Chisq` / null_deviance)%>%
+          rename(`p-value` = `Pr(>Chisq)`) %>%
+          mutate(`p-value` = if_else(`p-value` < 0.0001, 
+                                     "<0.0001", 
+                                     as.character(round(`p-value`, 4)))) %>%
+          set_colnames(c("Term","LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2")) %>%
+          set_rownames(NULL)
+        
+      }) 
+    }
+#  }
+  
+}, inline=TRUE)
+
+make_anova_num <- metaReactive2({
+  
+  req(globalVars$anova)
+  anova.table <- globalVars$anova
+  metaExpr({
+    "####################################"
+    "# Print Table"
+    "####################################"
+    anova.table %>% 
+      mutate_if(is.numeric, round, 4)%>%
+      mutate(`p-value` = ifelse(`p-value` < 0.0001, "<0.0001", `p-value`))
+    
+  })
+}, inline=TRUE)
+
+# Render table to UI  
+output$anovaTab <- DT::renderDataTable({
+  globalVars$make_anova_num
+},
+extensions = 'Buttons',
+options = list(
+  dom = 'Bfrtip',
+  buttons = 
+    list("copy", "print", list(
+      extend = "collection",
+      buttons = list(
+        list(extend="csv", filename="model-anova"),
+        list(extend="excel", filename="model-anova"),
+        list(extend="pdf", filename="model-anova")
+      ),
+      text = "Download",
+      filename = "model-anova"
+    ))
+), rownames = FALSE)
 
 
+# Download button for summary (LaTeX version)----
+output$downloadanovaLatex <- downloadHandler(
+  filename = function() {
+    paste("model-anovatable.tex", sep="")
+  },
+  content = function(file) {
+    base::print(xtable(globalVars$make_anova_num, digits = 4), file, type = "latex")
+  }
+)
+
+# R Code
+observeEvent(input$code_anova, {
+  code <- expandChain(
+    "# Ensure to load your data as an object called dat.",
+    quote({
+      library(tidyverse) 
+      library(magrittr)
+      library(car)
+      library(effectsize)
+    }),
+    "####################################",
+    "# Load Data",
+    "####################################",
+    read_data(),
+    refactor_data(),
+    prepare_scaled_data(),
+    fitmodel(),
+    prepare_anova(),
+    make_anova_num()
+  )
+  
+  displayCodeModal(
+    code, 
+    title = "Regression ANOVA Table",
+    size = "l", 
+    fontSize = 16,
+    clip=NULL
+  )
+})
+
+#NExt section now
+output$anovainterp <- renderUI({  
+  globalVars$prepare_anova_interp
+})
+
+prepare_anova_interp <- function(){
+  req(globalVars$anova)
+  
+  anova.table<-globalVars$anova %>%
+    mutate(e2.text = case_when(`Partial Epsilon-Squared`<0.02     ~ "minuscule and perhaps negligible.",
+                               `Partial Epsilon-Squared`>=0.02 & `Partial Epsilon-Squared`<0.12  ~ "small.",
+                               `Partial Epsilon-Squared`>=0.13 & `Partial Epsilon-Squared`<0.26  ~ "moderate.",
+                               `Partial Epsilon-Squared`>=0.26           ~ "large."))
+  alpha <- input$alpha
+  
+  anova.interp <- NULL
+  for(i in 1:(nrow(anova.table))){
+    if(anova.table$Term[i]=="Residuals"){
+      #do nothing
+    }else if(!grepl(x=anova.table$Term[i], pattern=":")){
+      anova.interp <- (paste(anova.interp,"\U2022 The effect of ", sub("\\.scaled$", "", anova.table$Term[i]), " is ", ifelse(anova.table$`p-value`[i]<alpha, "significant ", "not significant "),
+                             "(F = ",  round(anova.table$F[i],4),
+                             ", p-value ",  ifelse(anova.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova.table$`p-value`[i],4), sep="")), ").",
+                             ifelse(!is.na(anova.table[["Partial Epsilon-Squared"]][i]),
+                                    paste(" The effect size is ", round(anova.table[["Partial Epsilon-Squared"]][i], 3), ", which indicates that the effect is ", anova.table$e2.text[i], sep=""), ""),
+                             "<br/>", sep=""))
+    }else{
+      anova.interp <- (paste(anova.interp,"\U2022 The interactive effect of ", gsub("\\.scaled", "", anova.table$Term[i]), " is ", ifelse(anova.table$`p-value`[i]<alpha, "significant ", "not significant "),
+                             "(F = ", round(anova.table$F[i],4),
+                             ", p-value ",  ifelse(anova.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova.table$`p-value`[i],4), sep="")), ").",
+                             ifelse(!is.na(anova.table[["Partial Epsilon-Squared"]][i]),
+                                    paste(" The effect size is ", round(anova.table[["Partial Epsilon-Squared"]][i], 3), ", which indicates that the effect is ", anova.table$e2.text[i], sep=""), ""),
+                             "<br/>", sep=""))
+    }
+  }
+  
+  HTML(anova.interp)
+}
+
+#############################################################################################
+# ANOVA Comparison Tech Not Called Yet
+#############################################################################################
+prepare_anova_fctcomp <- metaReactive2({
+  
+  req(globalVars$model)
+  dat <- globalVars$dataset
+  model <- globalVars$model
+  
+  metaExpr({
+    # Determine the categorical predictors that need comparisons
+    fct.vars <- names(which(attr(model$terms, "dataClasses")=="factor"))
+    # Compare the different levels
+    anova_fctcomp.table <- NULL
+    
+    for(fctvar in fct.vars){
+      emm.obj <- emmeans(model, specs=fctvar)
+      emm.test <-pairs(emm.obj)
+      emm.ci <- confint(emm.test)
+      
+      emm.df <- data.frame(emm.test)
+      emm.df$Variable <- rep(fctvar, nrow(emm.df))
+      emm.df$lower.CI <- emm.ci$lower.CL
+      emm.df$upper.CI <- emm.ci$upper.CL
+      emm.df$CohensD <- abs(data.frame(eff_size(emm.obj, sigma(model), df.residual(model)))$effect.size)
+      
+      anova_fctcomp.table<- rbind(anova_fctcomp.table, emm.df)
+    }
+    
+    # Return the table with clean labels
+    anova_fctcomp.table %>%
+      dplyr::select(Variable, everything()) %>% 
+      set_rownames(NULL) %>%
+      set_colnames(c("Variable", "Contrast", "Estimate", "SE", "df", "t ratio", "p-value", "Lower CI", "Upper CI", "Cohen's d"))
+  })
+}, inline=TRUE)
+
+make_anovafctcomp_plot <- metaReactive2({
+  req(globalVars$anova)
+  anova_fctcomp.table <- globalVars$anova_fctcomp
+  
+  if(length(unique(anova_fctcomp.table$Variable))==1){
+    metaExpr({
+      "####################################"
+      "# Create Plot"
+      "####################################"
+      ggplot(data=anova_fctcomp.table, aes(x=Estimate, y=Contrast))+
+        geom_point()+
+        geom_errorbar(aes(xmin=`Lower CI`, xmax=`Upper CI`), width=0.1) +
+        xlab("Estimate")+
+        ylab("Contrast")+
+        theme_bw()+
+        ggtitle("Factor Comparisons") + 
+        xlim(min(anova_fctcomp.table$`Lower CI`), max(anova_fctcomp.table$`Upper CI`)) +
+        geom_vline(xintercept = 0, linetype = "dashed")
+    })
+  }else{
+    metaExpr({
+      "####################################"
+      "# Create Plot"
+      "####################################"
+      ggplot(data=anova_fctcomp.table, aes(x=Estimate, y=Contrast))+
+        geom_point()+
+        geom_errorbar(aes(xmin=`Lower CI`, xmax=`Upper CI`), width=0.1) +
+        xlab("Estimate")+
+        ylab("Contrast")+
+        theme_bw()+
+        ggtitle("Factor Comparisons")+
+        facet_wrap(~Variable, scales = "free") +
+        xlim(min(anova_fctcomp.table$`Lower CI`), max(anova_fctcomp.table$`Upper CI`)) +
+        geom_vline(xintercept = 0, linetype = "dashed")
+    }) 
+  }
+}, inline = TRUE)
+
+# Code for model summary table
+make_anovafctcomp_num <- metaReactive2({
+  
+  req(globalVars$anova)
+  anova_fctcomp.table <- globalVars$anova_fctcomp
+  metaExpr({
+    "####################################"
+    "# Print Table"
+    "####################################"
+    anova_fctcomp.table <- anova_fctcomp.table %>% 
+      mutate_if(is.numeric, round, 4) %>%
+      mutate(`p-value` = ifelse(`p-value` < 0.0001, "<0.0001", `p-value`))
+  })
+}, inline=TRUE)
+
+
+output$anova_fctcompinterp <- renderUI({  
+  globalVars$prepare_anova_fctcompinterp
+})
+
+prepare_anova_fctcompinterp <- function(){
+  
+  anova_fctcomp.table <- globalVars$anova_fctcomp %>%
+    mutate(d.text=  case_when(`Cohen's d`<0.20            ~ "minuscule and perhaps negligible.",
+                              `Cohen's d`>=0.20 & `Cohen's d`<0.50  ~ "small.",
+                              `Cohen's d`>=0.50 & `Cohen's d`<0.80  ~ "moderate.",
+                              `Cohen's d`>=0.80           ~ "large."))
+  alpha <- input$alpha
+  
+  anova.interp <- NULL
+  for(i in 1:(nrow(anova_fctcomp.table))){
+    anova.interp <- (paste(anova.interp,"\U2022 The contrast of (", anova_fctcomp.table$Contrast[i], ") is ", ifelse(anova_fctcomp.table$`p-value`[i]<alpha, "significant ", "not significant "),
+                           "(t = ",  round(anova_fctcomp.table$`t ratio`[i],2),
+                           ", p-value ",  ifelse(anova_fctcomp.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova_fctcomp.table$`p-value`[i],4), sep="")), 
+                           ", 95% CI: ", round(anova_fctcomp.table$`Lower CI`[i],4), ",", round(anova_fctcomp.table$`Upper CI`[i], 4), ").",
+                           " The effect size is ", round(anova_fctcomp.table[["Cohen's d"]][i], 3), ", which indicates that the effect is ", anova_fctcomp.table$d.text[i], "<br/>",
+                           sep=""))
+  }
+  anova.interp<-paste(anova.interp, "<br/><strong>Note:</strong> This approach contrasts the estimated marginal means with a Tukey adjustment. These values are calculated at the 'average' of the other variables in the model.",
+                      "You may want to set the other variables to specific values, which is supported in R but not currently supported in this application.")
+  
+  HTML(anova.interp)
+}
+
+output$anova_fctcomp_plot <- renderPlot({
+  globalVars$make_anovafctcomp_plot
+})
+
+# Render table to UI  
+output$anova_fctcompTab <- DT::renderDataTable({
+  globalVars$make_anovafctcomp_num
+},
+extensions = 'Buttons',
+options = list(
+  dom = 'Bfrtip',
+  buttons = 
+    list("copy", "print", list(
+      extend = "collection",
+      buttons = list(
+        list(extend="csv", filename="model-anova_fctcomp"),
+        list(extend="excel", filename="model-anova_fctcomp"),
+        list(extend="pdf", filename="model-anova_fctcomp")
+      ),
+      text = "Download",
+      filename = "model-anova_fctcomp"
+    ))
+), rownames = FALSE)
+
+
+# Download button for summary (LaTeX version)----
+output$downloadanovafctcompLatex <- downloadHandler(
+  filename = function() {
+    paste("model-anovafctcomptable.tex", sep="")
+  },
+  content = function(file) {
+    base::print(xtable(globalVars$make_anovafctcomp_num, digits = 4), file, type = "latex")
+  }
+)
+
+# Download PDF button for plots (call reactive function here to get plot object) ----
+output$downloadanovafactorcomparePlot <- downloadHandler(
+  filename = function() { paste('anovafactorcompare.', input$anova_fctcomp_plot_format, sep='') },
+  content = function(file) {
+    ggsave(file, plot = globalVars$make_anovafctcomp_plot, device = input$anova_fctcomp_plot_format, 
+           height = as.numeric(input$anova_fctcomp_plot_height), width = as.numeric(input$anova_fctcomp_plot_width), 
+           units = input$anova_fctcomp_plot_units)
+  }
+)
+
+# R Code
+observeEvent(input$code_anova_fctcomp, {
+  code <- expandChain(
+    "# Ensure to load your data as an object called dat.",
+    quote({
+      library(tidyverse) 
+      library(magrittr)
+      library(car)
+      library(effectsize)
+      library(emmeans)
+    }),
+    "####################################",
+    "# Load Data",
+    "####################################",
+    read_data(),
+    refactor_data(),
+    prepare_scaled_data(),
+    fitmodel(),
+    prepare_anova_fctcomp(),
+    make_anovafctcomp_num(),
+    make_anovafctcomp_plot()
+  )
+  displayCodeModal(
+    code, 
+    title = "Regression ANOVA Factor Comparisons",
+    size = "l", 
+    fontSize = 16,
+    clip=NULL
+  )
+})
 
 
 })
-
-#NOTE: HI LEO!
-#Alright leo, just wanna add this here cuz I spent about 2 hrs cross-referencing his code with ours
-# 1. He appears to have an input dataframe/tibble that I can't seem to find the source for. 
-# 2. We have code for unchecking the assumption boxes, but those don't seem to exist. I wanna run that by ya first
-# because that's gonna be a massive code update. Tmr, I'll see if I can make a branch to experiment with some stuff, but that's
-# a whole can of worms that I'll need about 2-3 hours to start deciphering ngl
-# 3. In his model, there's several things in UI that check and uncheck the boxes, which are then used as boolean values in server (which is weird)
-# Look for anything that uses the "CheckboxInput()" function in his code. We do have a few instances in our code too.
-# 4. In his code, there is one confusing bit with the checkbox inputs, and that's that I never see it updated to true. Im gonna ask him on Monday abt it.

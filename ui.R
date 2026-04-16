@@ -204,28 +204,28 @@ ui <- tagList(
                         tabsetPanel(id = "workPanel",
                                     tabPanel("Data Preview", br(), value="data", #Value allows us to pick whats data
                                              shinycssloaders::withSpinner(DT::dataTableOutput("preview.data"))),
-                                    tabPanel("Data Summary", value = "summary",
+                                    tabPanel("Data Summary", value="summary",
                                              fluidPage(
                                                h1("Pairwise Plots", align = "center"), br(),
-                                               fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(), # Here Tom
-                                               
-                                               
-                                               
-                                               
-                                               
-                                               
-                                               
-                                               
-                                               
-                                             ),
-                                             tags$hr(),
-                                             br(),
-                                             h1("Correlation Matrix", align = "center"), br()
-                                             
-                                             
-                                             
-                                             
-                                             
+                                               fluidRow(column(12, actionButton("code_ggpairsplot", "R code", icon("code"))),
+                                                        fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("ggpairs_plot")))),
+                                                        fluidRow(
+                                                          column(width=2, textInput("ggpairs_plot_height", "Enter Height", value=7)),
+                                                          column(width=2, textInput("ggpairs_plot_width", "Enter Width", value=7)),
+                                                          column(width=2, selectInput("ggpairs_plot_units", "Units", choices = c("in", "cm"))),
+                                                          column(width=2, selectInput("ggpairs_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                          column(width=2, downloadButton('downloadggpairsPlot'),style = "margin-top: 25px;"), #
+                                                          tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                        ),
+                                                        tags$hr(),
+                                                        br(),
+                                                        
+                                                        h1("Correlation Matrix", align = "center"), br(),
+                                                        fluidRow(column(12, actionButton("code_corrmat", "R code", icon("code")), downloadButton('downloadcormatLatex',label="LaTeX"))),br(),
+                                                        fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("ggpairs_summary")))), "*<0.05; **<0.01; ***<0.001", br()
+                                                        #verbatimTextOutput("summary")),
+                                               ),
+                                               tags$hr())
                                     ),
                                     tabPanel("Assumptions", value="assumptions",
                                              fluidPage(h1("Assumptions for Regression"),
@@ -343,37 +343,53 @@ ui <- tagList(
                                                          column(width=2, downloadButton('downloadZeroInflated_Plot'),style = "margin-top: 25px;"), #
                                                          tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
                                                        ),
-                                                       
-                                                       
-                                                       
-                                                       
-                                                       
-                                                       
-                                                       
-                                                       
-                                                       
-                                                       )
-                                             
-                                             
-                                             
-                                             
-                                             
-                                             
-                                             
-                                             
-                                             
-                                             
+
                                              )
+                                             
+                      
+                                               
+                                    ),
+                                    tabPanel("ANOVA", value="anova",
+                                             fluidPage(h1("ANOVA Table"), 
+                                                       fluidRow(column(12, actionButton("code_anova", "R code", icon("code")), downloadButton('downloadanovaLatex',label="LaTeX"))),br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("anovaTab")))),br(),
+                                                       h1("Interpretation"),
+                                                       htmlOutput("anovainterp"),
+                                                       tags$hr(),
+                                                       hidden(div(id='anova_fctcomp',
+                                                                  h1("Factor Comparisions"),
+                                                                  fluidRow(column(12, actionButton("code_anova_fctcomp", "R code", icon("code")))),
+                                                                  br(),
+                                                                  fluidRow(shinycssloaders::withSpinner(plotOutput("anova_fctcomp_plot")), style = "margin-left: 20px;"), 
+                                                                  br(),
+                                                                  fluidRow(
+                                                                    column(width=2, textInput("anova_fctcomp_plot_height", "Enter Height", value=7)),
+                                                                    column(width=2, textInput("anova_fctcomp_plot_width", "Enter Width", value=7)),
+                                                                    column(width=2, selectInput("anova_fctcomp_plot_units", "Units", choices = c("in", "cm"))),
+                                                                    column(width=2, selectInput("anova_fctcomp_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                                    column(width=2, downloadButton('downloadanovafactorcomparePlot'),style = "margin-top: 25px;"), #
+                                                                    tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                                  ),
+                                                                  fluidRow(column(12, downloadButton('downloadanovafctcompLatex',label="LaTeX"))),br(),
+                                                                  fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("anova_fctcompTab")))),br(),
+                                                                  h1("Interpretation"),
+                                                                  htmlOutput("anova_fctcompinterp"),
+                                                                  tags$hr()
+                                                       ))
+                                                       
+                                                       
+                                                   
+                                              
+                                                       
+                                             )
+                                    )
                                     
                                     
+ 
                                     
-                                    
-                                    
-                                    
-                                    
-                        )
+                       )
                         
-                      )
+                     )
                       
              ),
              tabPanel("Refrences"
