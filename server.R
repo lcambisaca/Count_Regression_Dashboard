@@ -142,7 +142,8 @@ server <- (function(input, output, session){
       filename <- case_when(input$sample_data_choice=="Bracht et al. MFAP4"                             ~ "BrachtMFAP4Data",
                             input$sample_data_choice=="Palmer Penguins"                                 ~ "PalmerPenguin",
                             input$sample_data_choice=="U.S. News College Data"                          ~ "College",
-                            input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data"
+                            input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data",
+                            input$sample_data_choice=="Ache Monkey"                                     ~ "Ache Monkey"
       )
       
       DT::datatable(
@@ -206,6 +207,10 @@ server <- (function(input, output, session){
       }else if(input$sample_data_choice=="Camera Data"){
         metaExpr({
           dat<-read_csv("cs_replication_data.csv")
+        })
+      }else if(input$sample_data_choice=="Ache Monkey"){
+        metaExpr({
+          dat<-read_csv("McMillanAcheMonkey.csv")
         })
       }
       
@@ -769,6 +774,9 @@ server <- (function(input, output, session){
         dat<-College
       }else if(input$sample_data_choice=="Camera Data" ){
         dat<-read.csv("www/cs_replication_data.csv")
+      }
+      else if(input$sample_data_choice=="Ache Monkey" ){
+        dat<-read.csv("www/McMillanAcheMonkey.csv")
       }
       shinyjs::show("select_factors")
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%

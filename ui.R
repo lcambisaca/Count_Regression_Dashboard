@@ -163,7 +163,7 @@ ui <- tagList(
                         actionButton("sample", "Sample Data"),
                         hidden(div(id='choose_sample', #div is a box
                                    selectInput("sample_data_choice","Sample Data:",
-                                               choices = c("Camera Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data"),
+                                               choices = c("Camera Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data", "Ache Monkey"),
                                                selected = "U.S. News College Data"))),
                         tags$hr(), #shaw shaw
                         div(id='choose_model',
