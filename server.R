@@ -857,10 +857,17 @@ server <- (function(input, output, session){
       subbed <- str_replace_all(subbed,fixed("*"),"~")
       subbed <- str_replace_all(subbed,fixed(":"),"~")
       subbed <- str_replace_all(subbed,fixed("|"),"~")
+      
+      while(grepl("[a-zA-Z0-9._]+\\(", subbed)) { 
+        # 1. Remove the function name and the opening '('
+        # 2. Remove the matching ')' and any trailing power like '^2'
+        subbed <- gsub("[a-zA-Z0-9._]+\\(([^)]+)\\)(\\^\\d+)?", "\\1", subbed, perl = TRUE)
+      } #Will not work for complex function like poly(x,2) or  I((a + b) * c)
+      
       variables <- trimws(str_split(string = subbed, pattern = "~", simplify = T))
       
       if(length(variables)>=2 && variables[2]!=""){
-        globalVars$response <- variables[1]
+        globalVars$response <- variables[1] # We had response var this whole time
         
         globalVars$equation <- input$equation
         
@@ -932,16 +939,19 @@ server <- (function(input, output, session){
           choice <- globalVars$model_choice
           form <- as.formula(globalVars$equation)
           dat <- globalVars$dataset
+          
+
           model <- switch(choice,
                         "Poisson" = glm(form, data = dat, family = poisson(link = "log")),
                         "Quasi-Poisson" = glm(form, data = dat, family = quasipoisson(link = "log")),
                         "Negative Binomial" = MASS::glm.nb(form, data = dat),
-                        "Zero-Inflated Poisson" = pscl::zeroinfl(form, data = dat, dist = "poisson"), # Crashes
-                        "Zero Inflated Negative Binomial" = pscl::zeroinfl(form, data = dat, dist = "negbin"),
+                        "Zero-Inflated Poisson" = zeroinfl(form, data = dat, dist = "poisson"), # Crashes
+                        "Zero Inflated Negative Binomial" = zeroinfl(form, data = dat, dist = "negbin"),
                         "Tweedie" = glm(form, data = dat, family = statmod::tweedie(1.5, 0)),
                         # Default fallback
                         glm(form, data = dat, family = poisson(link = "log")) 
           )
+          
           
           # Change the call to have the full formula -- this is imporant for later. It is usually unnecessary but it is important
           # for the emmeans code -- this is how it checks whether a log transformation was used.
@@ -961,8 +971,11 @@ server <- (function(input, output, session){
           
           model
         }, error = function(e){
-          #
-          if(grepl(pattern = "Error in eval(predvars, data, env): object", x = e, fixed = T)){
+          if (grepl(pattern = "could not find function", x = e, fixed = T)) {
+            shinyalert("Error!", text = "One of your function names is spelled incorrectly!", type = 'error')
+          }else if (grepl(pattern = "minimum count is not zero", x = e, fixed = T)) {
+            shinyalert("Error!", "Zero-inflated models require data with zeros. Choose Poisson instead.", type = "error")
+          }else if(grepl(pattern = "Error in eval(predvars, data, env): object", x = e, fixed = T)){
             # run <- FALSE
             shinyalert("Error!", text="You may have misspelled one of the variables. Please rewrite the regression equation.", type = "error")
           }else if(grepl(pattern = "Error in str2lang(x)", x = e, fixed=T)){  
@@ -975,7 +988,10 @@ server <- (function(input, output, session){
             # run <- FALSE
             shinyalert("Error!", text="There was an unanticipated error in fitting your regression model. Please report the issue and/or try another regression equation.", type = "error")
             safeError(e)
+          
           }
+          return(NULL)
+          
         }, warning = function(w){
           #
           # catch when user has a response as a predictor
@@ -991,33 +1007,39 @@ server <- (function(input, output, session){
           }else{
             # run <- FALSE
             shinyalert("Error!", text="There was an unanticipated error in fitting your regression model. Please report the issue and/or try another regression equation.", type = "error")          }
+          return(NULL)
+          
         })
         
-        
+        # Okay so this returns the error message if something weird happened which when passed down causes error
 
-        # 1. Check if model is NULL first
         if (is.null(model)) {
-          print("DEBUG: Model object is NULL!")
+          print("Erorr Message Appeared or Model is NULL!")
           return(NULL)
         }
         
-        # 2. Check if it actually has 'terms' (what model.matrix needs)
-        if (is.null(terms(model))) {
-          print("DEBUG: Object exists but has no 'terms'. It might not be a fitted model.")
+        model_matrix <- tryCatch({
+          if (inherits(model, "zeroinfl")) {
+            model.matrix(model, model = "count")
+          } else {
+            model.matrix(model)
+          }
+        }, error = function(e) {
+          print(paste("DEBUG: model.matrix failed -", e$message))
           return(NULL)
-        }
+        })
         
-        model_matrix <- model.matrix(model)
-        
+        # 3. Final safety check
+        if (is.null(model_matrix)) return(NULL)
+      
         
         # Check the rank of the model matrix < number of predictors?
-        model_matrix <- model.matrix(model)
         if(qr(model_matrix)$rank < (ncol(model_matrix))){
           shinyalert("Error!", text="Coefficients in your model are undefined due to signular fit. This can happen when there are missing combinations of observed categorical variables in a model with an interaction.", type = "error")
           return(NULL)
         }
         
-        if(!("glm" %in% class(model))){
+        if (!(inherits(model, "glm") | inherits(model, "zeroinfl"))) {
           run <- FALSE
         }
         
@@ -1032,11 +1054,13 @@ server <- (function(input, output, session){
        
         
         globalVars$model <- model
-        globalVars$modelsummary <- prepare_model_summary()
+       # browser()
+        
+        globalVars$modelsummary <- prepare_model_summary() # new crash for zip yay progress
        # globalVars$prepare_model_interp <- prepare_model_interp()
         
         
-        globalVars$anova <- prepare_anova()
+     #   globalVars$anova <- prepare_anova()
       #  globalVars$prepare_anova_interp <- prepare_anova_interp()
         
         ### Show factor outputs, if necessary
@@ -1081,7 +1105,7 @@ server <- (function(input, output, session){
         })
         
         globalVars$make_check_plot <- make_check_plot() #Checks Outliers
-        globalVars$make_anova_num <- make_anova_num()
+     #   globalVars$make_anova_num <- make_anova_num()
         globalVars$make_model_summary <- make_model_summary()
 
         
