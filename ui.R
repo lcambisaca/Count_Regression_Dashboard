@@ -134,15 +134,15 @@ ui <- tagList(
                                            h1("Example 1", align = "center"),
                                            
                                            tags$div(class = "paragraph", tags$hr(),
-                                                    p("Within the regression app, we provide data collected on a representative sample of n=558 White Americans by Cooley et al. (2022). The researchers aimed to assess whether beliefs that White people are poor are associated with the humanization of welfare recipients among White Americans who feel intergroup status threat—namely, those high in racial zero-sum beliefs."),
-                                                    p("If this were the case, it would suggest that the link between White-poor beliefs, the humanization of welfare recipients, and welfare policy support may be motivated by a desire to preserve the racial status quo.")
+                                                    p("Within this app, there is a provided dataset that contains a representative sample of n=47 Ache hunters by Micmillan et (2001). The researchers assessed the hunters' ages, the number of kills by each hunter, and the duration of each trek made by the hunters."),
+                                                    p("The goal of the researchers was to determine whether or not there was the dependency of skill on the age or experience of the hunter. If this were the case, it would suggest that there is an age at which a hunter's physical performance and age are both at their optimal for hunting."),
                                            ),
                                            
                                            tags$div(class = "paragraph", 
-                                                    p("The researchers used perceived agency of welfare recipients as a measure of humanization, and they wanted to evaluate whether White-poor and racial zero-sum beliefs affect this perception by controlling for education, income, political affiliation (Democrat or not) and their beliefs that Black people are poor."),
-                                                    p("Specifically, they hypothesized that the association between White-poor beliefs and the humanization of welfare recipients would be stronger among white Americans who also had higher racial zero-sum beliefs, indicating that an interaction term is necessary."),
+                                                    p("The researchers noted prior studies that assess the effects of age on the ability to forage, there was a notable gap in evaluating strength and skill as predictors of hunting ability."),
+                                                    p("More specifically, the researchers hypothesize that proficiency in hunting is associated with learning prior to and after a hunter matures physically, while accounting for hunting duration."),
                                                     tags$hr(),
-                                                    wellPanel(strong("Zagency ~ ZWpoor*Zzerosum + Zedu + Zincome + Democrat + ZBpoor"))
+                                                    wellPanel(strong("Kills ~ Age + Days"))
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
