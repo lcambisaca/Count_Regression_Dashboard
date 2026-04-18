@@ -58,8 +58,8 @@ server <- (function(input, output, session){
   # (NOTE PLOT) 1 Make sure to instantiate plots
   #---------------------------------------------
   
-  globalVars$Pois_RQRPlot <- NULL
-  globalVars$NB_RQRPlot <- NULL
+  globalVars$ZIP_RQRPlot <- NULL
+  globalVars$ZINB_RQRPlot <- NULL
   globalVars$RQRPlot <- NULL
   globalVars$Pearson_Residual <- NULL
   globalVars$ZeroInflated <- NULL
@@ -648,7 +648,6 @@ server <- (function(input, output, session){
           
         } else if (mod_type == "Zero Inflated Negative Binomial") {
           # Requires library(pscl)
-          
           quote(pscl::zeroinfl(formula, data = dat, dist = "negbin"))
           
         } else if (mod_type == "Tweedie") {
@@ -796,8 +795,7 @@ server <- (function(input, output, session){
     ")
     }, once = TRUE)
   })
-    #(NOTE MODEL DROPDOWN) Hi leo this is a skeleton of the code we'll need for the dropdown menu. I alr changed the var name to input$model_choice
-    #if you need to see what I did in ui, just ctrl + f and type "shaw shaw" (without the quotes).
+ 
     
     observeEvent(input$model_choice,{ #Okay this is set up to get the user choice and save it in server, now once they select one it should clear
       req(input$model_choice)
@@ -851,6 +849,7 @@ server <- (function(input, output, session){
     
     run <- TRUE
     dat <- globalVars$dataset
+    
     
     if (run & grepl("~", input$equation)) {
       subbed <- str_replace_all(input$equation,fixed("+"),"~")
@@ -931,16 +930,17 @@ server <- (function(input, output, session){
     ########################################
     if(globalVars$changed.input){
       run <- checkEquationValidity()
+
       
       if(run){
-        
         # Try to fit model
         model <- tryCatch({
           choice <- globalVars$model_choice
           form <- as.formula(globalVars$equation)
           dat <- globalVars$dataset
           
-
+          browser()
+          
           model <- switch(choice,
                         "Poisson" = glm(form, data = dat, family = poisson(link = "log")),
                         "Quasi-Poisson" = glm(form, data = dat, family = quasipoisson(link = "log")),
@@ -953,8 +953,8 @@ server <- (function(input, output, session){
           )
           
           
-          # Change the call to have the full formula -- this is imporant for later. It is usually unnecessary but it is important
-          # for the emmeans code -- this is how it checks whether a log transformation was used.
+          
+          
           model$call <- substitute(
                 FUNC(formula = F_VAL, data = D_VAL, family = FAM_VAL),
                 list(
@@ -1006,12 +1006,11 @@ server <- (function(input, output, session){
             shinyalert("Error!", text="You may have misspelled one of the variables. Please rewrite the regression equation.", type = "error")
           }else{
             # run <- FALSE
-            shinyalert("Error!", text="There was an unanticipated error in fitting your regression model. Please report the issue and/or try another regression equation.", type = "error")          }
+            shinyalert("Error!", text="(In Warninig) There was an unanticipated error in fitting your regression model. Please report the issue and/or try another regression equation.", type = "error")          }
           return(NULL)
           
         })
         
-        # Okay so this returns the error message if something weird happened which when passed down causes error
 
         if (is.null(model)) {
           print("Erorr Message Appeared or Model is NULL!")
@@ -1019,7 +1018,7 @@ server <- (function(input, output, session){
         }
         
         model_matrix <- tryCatch({
-          if (inherits(model, "zeroinfl")) {
+          if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial"){
             model.matrix(model, model = "count")
           } else {
             model.matrix(model)
@@ -1046,20 +1045,16 @@ server <- (function(input, output, session){
       }
       
       
-      
       if(run){ # NOTE THIS IS WHERE ALL PLOTS AND THINGS HAPPEN
        
         
-         showModal(modalDialog("Things are happening in the background!", footer=NULL))
-       
-        
+        showModal(modalDialog("Things are happening in the background!", footer=NULL))
         globalVars$model <- model
-       # browser()
         
         globalVars$modelsummary <- prepare_model_summary() # new crash for zip yay progress
        # globalVars$prepare_model_interp <- prepare_model_interp()
         
-        
+
      #   globalVars$anova <- prepare_anova()
       #  globalVars$prepare_anova_interp <- prepare_anova_interp()
         
@@ -1097,14 +1092,14 @@ server <- (function(input, output, session){
           NULL
         })
         
-        globalVars$ZeroInflated <- tryCatch({ 
+        globalVars$ZeroInflated <- tryCatch({ # HAve to set up for ZIP and Tweezer whatever doesnt use it
           ZeroInflated()
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the ZeroInflated Plot.", type = "error")
           NULL
         })
         
-        globalVars$make_check_plot <- make_check_plot() #Checks Outliers
+        globalVars$make_check_plot <- make_check_plot() #Checks Outliers crashing here
      #   globalVars$make_anova_num <- make_anova_num()
         globalVars$make_model_summary <- make_model_summary()
 
@@ -1131,18 +1126,144 @@ server <- (function(input, output, session){
     }
     
   })
-  
-
 
   #############################################################################################
   # Model Summary
   #############################################################################################
   prepare_model_summary <- metaReactive2({ 
     req(globalVars$model)
+    mod_type <- globalVars$model_choice
+    
     
     dat <- globalVars$dataset
     model <- globalVars$model
-    metaExpr({
+    
+    
+  
+    
+  
+    if (mod_type == "Zero-Inflated Poisson" || mod_type == "Zero Inflated Negative Binomial"){
+      metaExpr({
+        "####################################"
+        "#Summarize Zero Model"
+        "####################################" 
+        ci <- confint(model)
+        
+        "####################################"
+        "# Add Confidence Intervals"
+        "####################################"  
+        zero.mod.sum <- summary(model)$coefficient$zero
+        ci.zero <- ci[grep("zero_", rownames(ci)), ]
+        mod.table_zero <- cbind(zero.mod.sum, ci.zero)
+        
+        "####################################"
+        "# Clean Up Labels for Zero Model Printing"
+        "####################################"
+        mod.classes<-sapply(X = mod.camera.zip$model, FUN = class)[-1]
+        mod.classes<-mod.classes[which(mod.classes=="factor")]
+        for(vname in names(mod.classes)){
+          ind <- grepl(x=rownames(mod.table_zero), pattern = vname)
+          ind.int <- grepl(x=rownames(mod.table_zero), pattern = ":")
+          
+          indexes.int<- ind & ind.int
+          indexes <- xor(ind, indexes.int)
+          
+          varval  <- str_remove_all(rownames(mod.table_zero)[indexes], vname)
+          rownames(mod.table_zero)[indexes]<-paste(vname, " = ", varval, sep="")
+          
+          if(any(indexes.int)){
+            for(i in which(indexes.int)){
+              intname <- rownames(mod.table_zero)[i]
+              vname.unique <- str_replace(string = intname, pattern = paste(rownames(mod.table_zero)[(!indexes)&(!ind.int)],collapse ="|"), replacement = "")
+              varval  <- str_remove_all(vname.unique, pattern = vname)
+              varval  <- str_remove_all(varval, pattern = "[:]")
+              
+              rname<-str_remove_all(string = rownames(mod.table_zero)[i], pattern = vname)
+              rname<-str_remove_all(string = rname, pattern = varval)
+              rname<-str_remove_all(string = rname, pattern = "[:]")
+              
+              rownames(mod.table_zero)[i]<- paste(rname," : (",vname, " = ", varval,")", sep="")
+            }
+          }
+          
+          
+        }
+        
+        "####################################"
+        "#Summarize Count Model" 
+        "####################################" 
+
+        count.mod.sum <- summary(model)$coefficient$count
+        
+        "####################################"
+        "# Add Confidence Intervals"
+        "####################################"  
+        ci.count <- ci[grep("count_", rownames(ci)), ]
+        mod.table_count <- cbind(count.mod.sum, ci.count)
+        
+        "####################################"
+        "# Clean Up Labels for Count Model Printing"
+        "####################################"
+        mod.classes<-sapply(X = mod.camera.zip$model, FUN = class)[-1]
+        mod.classes<-mod.classes[which(mod.classes=="factor")] #Maybe cause issued doubt it thou
+        for(vname in names(mod.classes)){
+          ind <- grepl(x=rownames(mod.table_count), pattern = vname)
+          ind.int <- grepl(x=rownames(mod.table_count), pattern = ":")
+          
+          indexes.int<- ind & ind.int
+          indexes <- xor(ind, indexes.int)
+          
+          varval  <- str_remove_all(rownames(mod.table_count)[indexes], vname)
+          rownames(mod.table_count)[indexes]<-paste(vname, " = ", varval, sep="")
+          
+          if(any(indexes.int)){
+            for(i in which(indexes.int)){
+              intname <- rownames(mod.table_count)[i]
+              vname.unique <- str_replace(string = intname, pattern = paste(rownames(mod.table_count)[(!indexes)&(!ind.int)],collapse ="|"), replacement = "")
+              varval  <- str_remove_all(vname.unique, pattern = vname)
+              varval  <- str_remove_all(varval, pattern = "[:]")
+              
+              rname<-str_remove_all(string = rownames(mod.table_count)[i], pattern = vname)
+              rname<-str_remove_all(string = rname, pattern = varval)
+              rname<-str_remove_all(string = rname, pattern = "[:]")
+              
+              rownames(mod.table_count)[i]<- paste(rname," : (",vname, " = ", varval,")", sep="")
+            }
+          }
+          
+          
+        }
+        
+        "####################################"
+        "# Formating Tables"
+        "####################################"
+        
+        
+        mod.table_count <- data.frame(mod.table_count) %>% 
+          mutate("Term" = rownames(.), "Model Part" = "Count Model") %>% 
+          relocate(Term, `Model Part`) %>%  
+          set_rownames(NULL) %>%
+          set_colnames(c("Term", "Model Part", "Estimate", "SE", "z", "p-value", "Lower CI", "Upper CI"))
+        
+        mod.table_zero <- data.frame(mod.table_zero) %>% 
+          mutate("Term" = rownames(.), "Model Part" = "Zero-Inflation") %>% 
+          relocate(Term, `Model Part`) %>%  
+          set_rownames(NULL) %>%
+          set_colnames(c("Term", "Model Part", "Estimate", "SE", "z", "p-value", "Lower CI", "Upper CI"))
+        
+        
+        
+        mod.table_final <- rbind(mod.table_count, mod.table_zero)
+        
+        mod.table_final
+   
+       
+      })
+      
+    }
+    else{
+      
+      metaExpr({
       "####################################"
       "#Summarize Model"
       "####################################" 
@@ -1188,11 +1309,11 @@ server <- (function(input, output, session){
         relocate(Term) %>%                # put Term in first column
         set_rownames(NULL) %>%
         set_colnames(c("Term", "Estimate", "SE", "t", "p-value", "Lower CI", "Upper CI"))
-    })
+      })
+    }
   }, inline=TRUE)
   
   make_model_summary <- metaReactive2({
-    
     req(globalVars$modelsummary)
     mod.table <- globalVars$modelsummary
     metaExpr({
@@ -1239,7 +1360,7 @@ server <- (function(input, output, session){
   
   
   ########################################################
-  # Zero Inflated Test
+  # Zero Inflated Test NEED SERIOUS FIXING TOMM NOTE
   ########################################################
   
   ZeroInflated <-metaReactive2({
@@ -1250,12 +1371,9 @@ server <- (function(input, output, session){
     
   
     metaExpr({
+      # response
+    obs_zeros <- sum(model$y == 0)
       
-    # Extract the response variable safely
-    y_var <- model.response(model.frame(model))
-    
-    # Count the zeros
-    obs_zeros <- sum(y_var == 0, na.rm = TRUE)
     
     numZeros <-rep(NA,1000)
     
@@ -1264,8 +1382,6 @@ server <- (function(input, output, session){
     }
     
     mean(numZeros <= obs_zeros)
-    
-    library(ggplot2)
     
     
     sim_data <- data.frame(zeros = numZeros)
@@ -1307,7 +1423,7 @@ server <- (function(input, output, session){
     }
   )
   
-  observeEvent(input$code_ZeroInflated, {
+  observeEvent(input$code_ZeroInflated, { #NEEDS FIXINGGG
     code <- expandChain(
       "# Ensure to load your data as an object called dat.",
       quote({
@@ -1400,90 +1516,172 @@ server <- (function(input, output, session){
   })
   
   
+  #########################################################
+  # Helper Function
+  #########################################################
   
+  dznbinom <- function(y, mu, theta, pi) {
+    probs <- numeric(length(y))
+    probs[y == 0] <- pi[y == 0] + (1 - pi[y == 0]) * (theta / (mu[y == 0] + theta))^theta
+    probs[y > 0] <- (1 - pi[y > 0]) * dnbinom(y[y > 0], size = theta, mu = mu[y > 0])
+    return(probs)
+  }
+  
+  pznbinom <- function(q, mu, theta, pi) {
+    probs <- numeric(length(q))
+    if(length(pi) == 1) pi <- rep(pi, length(q))
+    if(length(mu) == 1) mu <- rep(mu, length(q))
+    probs[q < 0] <- 0
+    idx <- q >= 0
+    probs[idx] <- pi[idx] + (1 - pi[idx]) * pnbinom(q[idx], size = theta, mu = mu[idx])
+    
+    return(probs)
+  }
+  
+  dzpois <- function(y, lambda, pi) {
+    probs <- numeric(length(y))
+    n <- length(y)
+    probs[y == 0] <- pi[y == 0] + (1 - pi[y == 0]) * exp(-lambda[y == 0])
+    probs[y > 0] <- (1 - pi[y > 0]) * dpois(y[y > 0], lambda[y > 0])
+    return(probs)
+  }
+  
+  pzpois <- function(q, lambda, pi) {
+    probs <- numeric(length(q))
+    probs[q < 0] <- 0
+    idx <- q >= 0
+    probs[idx] <- pi[idx] + (1 - pi[idx]) * ppois(q[idx], lambda[idx])
+    
+    return(probs)
+  }
+ 
   ##########################################################
-  # RQR Plots Just set up for POIS
+  # RQR Plots
   ##########################################################
   
-RQRPlot <- metaReactive2({ # (NOTE PLOT) 3
+  RQRPlot <- metaReactive2({ # (NOTE PLOT) 3
   req(globalVars$model)
   dat <- globalVars$dataset
   model <- globalVars$model
-  print(model)
+  mod_type <- globalVars$model_choice
   
-  
-  library('patchwork')
-  library('emmeans')
-  
-  metaExpr({
+  if (mod_type == "Zero-Inflated Poisson"){
+    counts <- model$y
+    lambdas <- fitted(model, type = "count")
+    pis <- predict(model, type = "zero")
+    rqr <- rep(NA, length(lambdas))
+    for(i in 1:length(lambdas)){
+      ai <- pzpois(counts[i]-1, lambda=lambdas[i], pi=pis[i])
+      bi <- pzpois(counts[i], lambda=lambdas[i], pi=pis[i])
+      # this works even when ai=bi
+      ui <- ai + runif(1) * (bi - ai)
+      ui <- max(min(ui, 1-10^(-6)), 10^(-6))
+      rqr[i] <- qnorm(ui)
+    }
+    
+    
+    pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
+    p1 <- ggplot(data=tibble(lambda=lambdas,
+                             e=rqr)) + 
+      geom_hline(yintercept=0, linetype="dotted")+
+      geom_point(aes(x=lambda, y=e)) +
+      theme_bw()+
+      xlab(bquote(lambda))+
+      ylab("Randomized Quantile Residuals")
+    p2 <- ggplot(data=tibble(e=rqr)) +
+      stat_qq(aes(sample=e)) +
+      stat_qq_line(aes(sample=e)) +
+      theme_bw() +
+      ggtitle(paste("Dispersion Ratio =", round(pearson.ratio, 4)))
+    p1+p2
+
+  }
+
+  else if(mod_type == "Zero Inflated Negative Binomial"){
+    
+    counts <- model$y
+    mus <- predict(model, type = "count")
+    pis <- predict(model, type = "zero")
+    rqr <- rep(NA, length(mus))
+    for(i in 1:length(mus)){
+      ai <- pznbinom(counts[i]-1, theta=model$theta, 
+                     mu=mus[i], pi=pis[i])
+      bi <- pznbinom(counts[i], theta=model$theta, 
+                     mu=mus[i], pi=pis[i])
+      # this works even when ai=bi
+      ui <- ai + runif(1) * (bi - ai)
+      ui <- max(min(ui, 1-10^(-6)), 10^(-6))
+      rqr[i] <- qnorm(ui)
+    }
+    
+    pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
+    p1 <- ggplot(data=tibble(mu=mus,
+                             e=rqr)) + 
+      geom_hline(yintercept=0, linetype="dotted")+
+      geom_point(aes(x=mu, y=e)) +
+      theme_bw()+
+      xlab(bquote(mu))+
+      ylab("Randomized Quantile Residuals")
+    p2 <- ggplot(data=tibble(e=rqr)) +
+      stat_qq(aes(sample=e)) +
+      stat_qq_line(aes(sample=e)) +
+      theme_bw() +
+      ggtitle(paste("Dispersion Ratio =", round(pearson.ratio, 4)))
+    p1+p2
+    
+
+  }else {
+    metaExpr({
+      
     "####################################"
     "# Create Data for PDF of Residuals Plot"
     "####################################"
-  counts <- model$y
-  lambdas <- fitted(model)
-  rqr <- rep(NA, length(lambdas))
-  
-  
-  for(i in 1:length(lambdas)){
-    ai <- ppois(counts[i]-1,lambda=lambdas[i])
-    bi <- ppois(counts[i], lambda=lambdas[i])
-    ui <- ai+runif(1)* (bi-ai)
-    ui <- max(min(ui,1-10^(-6)),10^(-6))
-    rqr[i] <- qnorm(ui)
+    counts <- model$y
+    lambdas <- fitted(model)
+    rqr <- rep(NA, length(lambdas))
+    
+    
+    for(i in 1:length(lambdas)){
+      ai <- ppois(counts[i]-1,lambda=lambdas[i])
+      bi <- ppois(counts[i], lambda=lambdas[i])
+      ui <- ai+runif(1)* (bi-ai)
+      ui <- max(min(ui,1-10^(-6)),10^(-6))
+      rqr[i] <- qnorm(ui)
+    }
+    
+    pearson.ratio <- sum(residuals(model, type= "pearson")^2)/model$df.residual
+    p1 <- ggplot(data=tibble(lambda=lambdas,e=rqr)) +
+      geom_hline(yintercept=0,linetype="dotted")+
+      geom_point(aes(x=lambda, y=e))+
+      theme_bw()+
+      xlab(bquote(lambda))+
+      ylab("RandomizedQuantileResiduals")
+    
+    p2 <- ggplot(data=tibble(e=rqr)) +
+      stat_qq(aes(sample=e)) +
+      stat_qq_line(aes(sample=e))+
+      theme_bw()+
+      xlab("Theoretical")+
+      ylab("Observed")+
+      ggtitle(paste("DispersionRatio=",round(pearson.ratio,4)))
+    
+    p1+p2
+    
+    })
   }
   
-  pearson.ratio <- sum(residuals(model, type= "pearson")^2)/model$df.residual
-  p1 <- ggplot(data=tibble(lambda=lambdas,e=rqr)) +
-    geom_hline(yintercept=0,linetype="dotted")+
-    geom_point(aes(x=lambda, y=e))+
-    theme_bw()+
-    xlab(bquote(lambda))+
-    ylab("RandomizedQuantileResiduals")
-  
-  p2 <- ggplot(data=tibble(e=rqr)) +
-    stat_qq(aes(sample=e)) +
-    stat_qq_line(aes(sample=e))+
-    theme_bw()+
-    xlab("Theoretical")+
-    ylab("Observed")+
-    ggtitle(paste("DispersionRatio=",round(pearson.ratio,4)))
-  
-  p1+p2
-  
-  })
-  
 
-    
 })
   
-
 # Render plot to UI
   output$RQR_plot <- renderPlot({
-    # 1. Ensure the model exists before trying to plot
-    req(globalVars$model)
-    
-    # 2. Get the model and model type
-    mod <- globalVars$model
-    mod_type <- globalVars$model_choice
-    
-    # 3. Generate the specific plot based on model type
-    # Note: Count models often use Randomized Quantile Residuals (DHARMa package is great for this)
-    
-    if (mod_type %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")) {
-      # Special plotting logic for Zero-Inflated
-      # Example using DHARMa:
-      # res <- DHARMa::simulateResiduals(mod)
-      # plot(res)
-      plot(mod, which = 1, main = paste("Residuals for", mod_type)) 
-      
-    } else {
-      # Standard plotting for Poisson / NB / Quasi
-      # This replaces the plot whenever the model object inside globalVars$model changes
-      req(globalVars$RQRPlot) # Don't try to plot if it hasn't been created yet
+      req(globalVars$RQRPlot) 
       globalVars$RQRPlot
-    }
   })
 
+  output$check_plot <- renderPlot({
+    globalVars$make_check_plot
+  })
 
 # Download button for plots (call reactive function here to get plot object) ---- (NOTE PLOT) 5
 output$downloadRQRPlot <- downloadHandler(  
@@ -1533,9 +1731,92 @@ observeEvent(input$code_RQR, {
 # Code check plot
 make_check_plot <- metaReactive2({
   req(globalVars$model)
-  
   model<-globalVars$model
+  mod_type <-  globalVars$model_choice
+  
+  
+    if (mod_type == "Zero-Inflated Poisson" || mod_type == "Zero Inflated Negative Binomial"){
+    
+    "####################################"
+    "# 1. Zero-Inflation Check (p1)"
+    "####################################"
+    
+
+    obs_zeros <- sum(model$y == 0)
+    
+    pred_prob <- predict(model, type = "prob")[,1]
+    pred_zeros <- sum(pred_prob)
+    
+    zero_dat <- data.frame(
+      Type = c("Observed", "Predicted"),
+      Count = c(obs_zeros, pred_zeros)
+    )
+    
+    p1 <- ggplot(zero_dat, aes(x = Type, y = Count, fill = Type)) +
+      geom_bar(stat = "identity", width = 0.6) +
+      theme_bw() +
+      scale_fill_manual(values = c("red", "black")) +
+      labs(title = "Zero-Inflation Check", subtitle = "Observed vs. Expected Zeros")
+    
+    "####################################"
+    "# 2. Overdispersion Check (p2)"
+    "####################################"
+    # Your r^2 vs Lambda implementation
+    ggdat <- tibble(r2= resid(model, type = "pearson")^2,
+                    lambdas = fitted(model))
+    ggplot(ggdat) +
+      geom_point(aes(x=lambdas, y=r2)) +
+      geom_hline(yintercept = 1, linetype="dotted", color="red") +
+      geom_smooth(aes(x=lambdas, y=r2), color="black") +
+      theme_bw() +
+      xlab(bquote(lambda)) +
+      ylab(bquote(r^2))
+    
+    "####################################"
+    "# 3. Predicted vs. Observed Counts (p3)"
+    "####################################"
+    ggdat_fit <- data.frame(
+      observed = model$y,
+      predicted = predict(model, type = "response")
+    )
+    
+    p3 <- ggplot(ggdat_fit, aes(x = predicted, y = observed)) +
+      geom_point(alpha = 0.5, shape = 1) +
+      geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+      theme_bw() +
+      labs(title = "Model Accuracy", x = "Predicted Count", y = "Observed Count")
+    
+    "####################################"
+    "# 4. Pearson Res vs. Index (p4)"
+    "####################################"
+    res <- residuals(model, type = "pearson")
+    ggdat_res <- data.frame(obs = 1:length(res), res = res)
+    
+    # Logic for outlier highlighting
+    ggdat_res <- ggdat_res %>% 
+      mutate(Outlier = ifelse(abs(res) > 3, "Red", ifelse(abs(res) > 2, "Orange", "Normal")))
+    
+    p4 <- ggplot(ggdat_res, aes(x = obs, y = res, color = Outlier)) +
+      geom_point(shape = 1) +
+      scale_color_manual(values = c("Normal" = "black", "Orange" = "orange", "Red" = "red")) +
+      geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
+      geom_hline(yintercept = c(-3, -2, 2, 3), linetype = "dotted", alpha = 0.5) +
+      theme_bw() +
+      theme(legend.position = "none") +
+      labs(title = "Pearson Residuals", x = "Observation Number", y = "Residual")
+    
+    "####################################"
+    "# Print ZIP Diagnostic Grid"
+    "####################################"
+    (p1 | p2) / (p3 | p4)
+    
+    
+    
+  }
+  else{
   metaExpr({
+    
+    
     "####################################"
     "# Create Data for Leverage Plot"
     "####################################"
@@ -1620,6 +1901,7 @@ make_check_plot <- metaReactive2({
     "####################################"
     (p1|p2)/(p3|p4)
   })
+  }
 },inline=TRUE)
 
 # Render plot to UI
@@ -1849,15 +2131,6 @@ observeEvent(input$code_corrmat, {
   )
 })
 
-
-# Safe extraction for both GLM and Zero-Inflated models
-#if (inherits(model, "zeroinfl")) {
-# Combine both 'count' and 'zero' parts to check for interactions
-#  coef_list <- summary(model)$coefficients
-#  coef_summary <- rbind(coef_list$count, coef_list$zero)
-#} else {
-#  coef_summary <- as.data.frame(summary(model)$coefficients)
-#}
 
 #############################################################################################
 # Model ANOVA Table

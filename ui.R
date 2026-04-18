@@ -49,7 +49,6 @@ library(tweedie)
 ###----------------------------------------------------------------------------###
 ##U---------------------------------------------------------------------------I###
 
-# taglist allows us to create a bundled package for UI 
 
 ui <- tagList(
   tags$head(tags$link(rel = "icon",  type = "image/x-icon", href = "www/Shaw.png"), 
