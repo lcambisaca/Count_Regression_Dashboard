@@ -963,8 +963,9 @@ server <- (function(input, output, session){
           form <- as.formula(globalVars$equation)
           dat <- globalVars$dataset
           
-          browser()
-          
+          # TOM NOTE okay so gist i traced problem to below line, it works for ZIP but not ZINB when we do the following with pipe
+          # Use monkey data and Kills ~ Age | Days to see yourself
+          # browser() use this to see yourself and click next at console 
           model <- switch(choice,
                         "Poisson" = glm(form, data = dat, family = poisson(link = "log")),
                         "Quasi-Poisson" = glm(form, data = dat, family = quasipoisson(link = "log")),
@@ -1079,7 +1080,7 @@ server <- (function(input, output, session){
        # globalVars$prepare_model_interp <- prepare_model_interp()
         
 
-     #   globalVars$anova <- prepare_anova()
+        # globalVars$anova <- prepare_anova()
       #  globalVars$prepare_anova_interp <- prepare_anova_interp()
         
         ### Show factor outputs, if necessary
