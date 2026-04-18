@@ -142,7 +142,8 @@ server <- (function(input, output, session){
       filename <- case_when(input$sample_data_choice=="Bracht et al. MFAP4"                             ~ "BrachtMFAP4Data",
                             input$sample_data_choice=="Palmer Penguins"                                 ~ "PalmerPenguin",
                             input$sample_data_choice=="U.S. News College Data"                          ~ "College",
-                            input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data"
+                            input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data",
+                            input$sample_data_choice=="Ache Monkey"                                     ~ "Ache Monkey"
       )
       
       DT::datatable(
@@ -206,6 +207,10 @@ server <- (function(input, output, session){
       }else if(input$sample_data_choice=="Camera Data"){
         metaExpr({
           dat<-read_csv("cs_replication_data.csv")
+        })
+      }else if(input$sample_data_choice=="Ache Monkey"){
+        metaExpr({
+          dat<-read_csv("McMillanAcheMonkey.csv")
         })
       }
       
@@ -312,12 +317,16 @@ server <- (function(input, output, session){
     shinyjs::hide("asmp_2note")
     shinyjs::hide("asmp_3note")
     shinyjs::hide("asmp_4note")
+    shinyjs::hide("asmp_5Anote")
+    shinyjs::hide("asmp_5Bnote")
     shinyjs::hide("all")
     shinyjs::hide("asmp_note")
     updateCheckboxInput(session, "asmp_1", value = FALSE)
     updateCheckboxInput(session, "asmp_2", value = FALSE)
     updateCheckboxInput(session, "asmp_3", value = FALSE)
     updateCheckboxInput(session, "asmp_4", value = FALSE)
+    updateCheckboxInput(session, "asmp_5A", value = FALSE)
+    updateCheckboxInput(session, "asmp_5B", value = FALSE)
     
     shinyjs::hide("ihs_button")
     shinyjs::hide("log_button")
@@ -769,6 +778,9 @@ server <- (function(input, output, session){
       }else if(input$sample_data_choice=="Camera Data" ){
         dat<-read.csv("www/cs_replication_data.csv")
       }
+      else if(input$sample_data_choice=="Ache Monkey" ){
+        dat<-read.csv("www/McMillanAcheMonkey.csv")
+      }
       shinyjs::show("select_factors")
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
         mutate_if(is.integer,as.numeric)
@@ -810,6 +822,20 @@ server <- (function(input, output, session){
       uncheckAllAssumptions()
       hideAllTabs()
       
+      
+      if(input$model_choice %in% c("Poisson", "Negative Binomial")){
+        shinyjs::show("asmp_5A")
+        shinyjs::hide("asmp_5B")
+      } else if(input$model_choice %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")) {
+        shinyjs::hide("asmp_5A")
+        shinyjs::show("asmp_5B")
+      } else {
+        shinyjs::hide("asmp_5A")
+        shinyjs::hide("asmp_5B")
+      }
+      
+      
+      
     
     # Define the message based on the model selection
     tip_message <- case_when(
@@ -837,8 +863,6 @@ server <- (function(input, output, session){
 ", tip_message))
     
   })
-  
-  
   
   
   ########################################

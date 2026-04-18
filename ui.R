@@ -133,20 +133,20 @@ ui <- tagList(
                                            h1("Example 1", align = "center"),
                                            
                                            tags$div(class = "paragraph", tags$hr(),
-                                                    p("Within the regression app, we provide data collected on a representative sample of n=558 White Americans by Cooley et al. (2022). The researchers aimed to assess whether beliefs that White people are poor are associated with the humanization of welfare recipients among White Americans who feel intergroup status threat—namely, those high in racial zero-sum beliefs."),
-                                                    p("If this were the case, it would suggest that the link between White-poor beliefs, the humanization of welfare recipients, and welfare policy support may be motivated by a desire to preserve the racial status quo.")
+                                                    p("Within this app, there is a provided dataset that contains a representative sample of n=47 Ache hunters by Micmillan et (2001). The researchers assessed the hunters' ages, the number of kills by each hunter, and the duration of each trek made by the hunters."),
+                                                    p("The goal of the researchers was to determine whether or not there was the dependency of skill on the age or experience of the hunter. If this were the case, it would suggest that there is an age at which a hunter's physical performance and age are both at their optimal for hunting."),
                                            ),
                                            
                                            tags$div(class = "paragraph", 
-                                                    p("The researchers used perceived agency of welfare recipients as a measure of humanization, and they wanted to evaluate whether White-poor and racial zero-sum beliefs affect this perception by controlling for education, income, political affiliation (Democrat or not) and their beliefs that Black people are poor."),
-                                                    p("Specifically, they hypothesized that the association between White-poor beliefs and the humanization of welfare recipients would be stronger among white Americans who also had higher racial zero-sum beliefs, indicating that an interaction term is necessary."),
+                                                    p("The researchers noted prior studies that assess the effects of age on the ability to forage, there was a notable gap in evaluating strength and skill as predictors of hunting ability."),
+                                                    p("More specifically, the researchers hypothesize that proficiency in hunting is associated with learning prior to and after a hunter matures physically, while accounting for hunting duration."),
                                                     tags$hr(),
-                                                    wellPanel(strong("Zagency ~ ZWpoor*Zzerosum + Zedu + Zincome + Democrat + ZBpoor"))
+                                                    wellPanel(strong("Kills ~ Age + I(Age^2) + offset(log(Days)"))
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
-                                                    p("The data are quite noisy, and we can see that some variables are discrete. We see that the perceived agency of welfare recipients (humanization) is positively correlated with beliefs that White people are poor, beliefs that Black people are poor, and negatively correlated with zero-sum beliefs. Further, we can see that the perceived agency of welfare recipients (humanization) appears to be more prominent among Democrats than non-democrats."),
-                                                    p("While these findings provide some insight toward our research question, they are zero-order, meaning we look at the pairs of correlations independently without considering how all the explanatory variables work together."),
+                                                    p("While the data is somewhat limited in size, it can be observed via Estimated Marginal Means that the predicted age at which hunters are at their peak is around age 52."),
+                                                    p("However, to see if we can better fit the model, we can also fit a quasi-poisson model."),
                                                     tags$hr()
                                            ),
                                            # HTML('<center><img src="ex1-datasummary.png"></center>'),
@@ -162,7 +162,7 @@ ui <- tagList(
                         actionButton("sample", "Sample Data"),
                         hidden(div(id='choose_sample', #div is a box
                                    selectInput("sample_data_choice","Sample Data:",
-                                               choices = c("Camera Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data"),
+                                               choices = c("Camera Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data", "Ache Monkey"),
                                                selected = "U.S. News College Data"))),
                         tags$hr(), #shaw shaw
                         div(id='choose_model',
@@ -247,10 +247,20 @@ ui <- tagList(
                                                                 # Assumption 4
                                                                 checkboxInput("asmp_4", "The relationship between the predictors and the log-mean is linear."),
                                                                 hidden(div(id='asmp_4note', htmlOutput('asmp_4'))),
+                                                                
+                                                                #Assumption 5A: Non-ZI model - excess 0
+                                                                hidden(checkboxInput("asmp_5A", HTML("The model does not have excess zero values"), FALSE)), #NOTE: MAY NEED TO ADD PLOT FOR THIS
+                                                                hidden(div(id='asmp_5Anote', htmlOutput("asmp_5A"))),
+                                                                #Assumption 5B: ZI Model Structural 0s
+                                                                hidden(checkboxInput("asmp_5B", HTML("The model has a mixed process for generating zeroes and counts"), FALSE)), #NOTE: MAY NEED TO ADD PLOT FOR THIS
+                                                                hidden(div(id='asmp_5Bnote', htmlOutput("asmp_5B"))),
+                                                                
                                                                 br(),
                                                                 actionButton("check_asmp", strong("Check Assumptions")), br(), br(),    # Button to check all assumptions
                                                                 # Hidden divs are displayed only for two-sample independent test
-                                                                hidden(div(id='asmp_note', htmlOutput('asmp_note')))
+                                                                hidden(div(id='asmp_note', htmlOutput('asmp_note'))),
+                                                                
+                                                                
                                                          ),
                                                          
                                                          column(8, 
