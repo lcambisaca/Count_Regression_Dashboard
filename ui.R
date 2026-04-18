@@ -248,10 +248,20 @@ ui <- tagList(
                                                                 # Assumption 4
                                                                 checkboxInput("asmp_4", "The relationship between the predictors and the log-mean is linear."),
                                                                 hidden(div(id='asmp_4note', htmlOutput('asmp_4'))),
+                                                                
+                                                                #Assumption 5A: Non-ZI model - excess 0
+                                                                hidden(checkboxInput("asmp_5A", HTML("The model does not have excess zero values"), FALSE)), #NOTE: MAY NEED TO ADD PLOT FOR THIS
+                                                                hidden(div(id='asmp_5Anote', htmlOutput("asmp_5A"))),
+                                                                #Assumption 5B: ZI Model Structural 0s
+                                                                hidden(checkboxInput("asmp_5B", HTML("The model has a mixed process for generating zeroes and counts"), FALSE)), #NOTE: MAY NEED TO ADD PLOT FOR THIS
+                                                                hidden(div(id='asmp_5Bnote', htmlOutput("asmp_5B"))),
+                                                                
                                                                 br(),
                                                                 actionButton("check_asmp", strong("Check Assumptions")), br(), br(),    # Button to check all assumptions
                                                                 # Hidden divs are displayed only for two-sample independent test
-                                                                hidden(div(id='asmp_note', htmlOutput('asmp_note')))
+                                                                hidden(div(id='asmp_note', htmlOutput('asmp_note'))),
+                                                                
+                                                                
                                                          ),
                                                          
                                                          column(8, 

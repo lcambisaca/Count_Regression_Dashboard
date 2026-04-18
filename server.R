@@ -317,12 +317,16 @@ server <- (function(input, output, session){
     shinyjs::hide("asmp_2note")
     shinyjs::hide("asmp_3note")
     shinyjs::hide("asmp_4note")
+    shinyjs::hide("asmp_5Anote")
+    shinyjs::hide("asmp_5Bnote")
     shinyjs::hide("all")
     shinyjs::hide("asmp_note")
     updateCheckboxInput(session, "asmp_1", value = FALSE)
     updateCheckboxInput(session, "asmp_2", value = FALSE)
     updateCheckboxInput(session, "asmp_3", value = FALSE)
     updateCheckboxInput(session, "asmp_4", value = FALSE)
+    updateCheckboxInput(session, "asmp_5A", value = FALSE)
+    updateCheckboxInput(session, "asmp_5B", value = FALSE)
     
     shinyjs::hide("ihs_button")
     shinyjs::hide("log_button")
@@ -820,6 +824,20 @@ server <- (function(input, output, session){
       uncheckAllAssumptions()
       hideAllTabs()
       
+      
+      if(input$model_choice %in% c("Poisson", "Negative Binomial")){
+        shinyjs::show("asmp_5A")
+        shinyjs::hide("asmp_5B")
+      } else if(input$model_choice %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")) {
+        shinyjs::hide("asmp_5A")
+        shinyjs::show("asmp_5B")
+      } else {
+        shinyjs::hide("asmp_5A")
+        shinyjs::hide("asmp_5B")
+      }
+      
+      
+      
     
     # Define the message based on the model selection
     tip_message <- case_when(
@@ -847,8 +865,6 @@ server <- (function(input, output, session){
 ", tip_message))
     
   })
-  
-  
   
   
   ########################################
