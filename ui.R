@@ -142,12 +142,12 @@ ui <- tagList(
                                                     p("The researchers noted prior studies that assess the effects of age on the ability to forage, there was a notable gap in evaluating strength and skill as predictors of hunting ability."),
                                                     p("More specifically, the researchers hypothesize that proficiency in hunting is associated with learning prior to and after a hunter matures physically, while accounting for hunting duration."),
                                                     tags$hr(),
-                                                    wellPanel(strong("Kills ~ Age + Days"))
+                                                    wellPanel(strong("Kills ~ Age + I(Age^2) + offset(log(Days)"))
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
-                                                    p("The data are quite noisy, and we can see that some variables are discrete. We see that the perceived agency of welfare recipients (humanization) is positively correlated with beliefs that White people are poor, beliefs that Black people are poor, and negatively correlated with zero-sum beliefs. Further, we can see that the perceived agency of welfare recipients (humanization) appears to be more prominent among Democrats than non-democrats."),
-                                                    p("While these findings provide some insight toward our research question, they are zero-order, meaning we look at the pairs of correlations independently without considering how all the explanatory variables work together."),
+                                                    p("While the data is somewhat limited in size, it can be observed via Estimated Marginal Means that the predicted age at which hunters are at their peak is around age 52."),
+                                                    p("However, to see if we can better fit the model, we can also fit a quasi-poisson model."),
                                                     tags$hr()
                                            ),
                                            # HTML('<center><img src="ex1-datasummary.png"></center>'),
