@@ -652,17 +652,16 @@ server <- (function(input, output, session){
           quote(glm(formula, data = dat, family = quasipoisson(link = "log")))
           
         } else if (mod_type == "Zero-Inflated Poisson") {
-          # Requires library(pscl)
-          quote(pscl::zeroinfl(formula, data = dat, dist = "poisson")) #Might change formula remove pscl
+          # Requires library(glmmTMB)
+          quote(glmmTMB(formula, ziformula,data = dat, dist = "poisson")) #Might change formula remove pscl
           
         } else if (mod_type == "Zero Inflated Negative Binomial") {
-          # Requires library(pscl)
-          quote(pscl::zeroinfl(formula, data = dat, dist = "negbin"))
+          # Requires library(glmmTMB)
+          quote(glmmTMB(formula, ziformula, data = dat, family = "nbinom2"))
           
         } else if (mod_type == "Tweedie") {
           # Requires library(tweedie)
           # Usually family = tweedie(var.power=1.5, link.power=0)
-          
           quote(glm(formula, data = dat, family = statmod::tweedie(var.power = 1.5, link.power = 0)))
         })
       
@@ -954,45 +953,88 @@ server <- (function(input, output, session){
     ########################################
     if(globalVars$changed.input){
       run <- checkEquationValidity()
+      
+
 
       
       if(run){
         # Try to fit model
         model <- tryCatch({
+          
+          
           choice <- globalVars$model_choice
-          form <- as.formula(globalVars$equation)
+          form <- globalVars$equation
           dat <- globalVars$dataset
           
-          # TOM NOTE okay so gist i traced problem to below line, it works for ZIP but not ZINB when we do the following with pipe
-          # Use monkey data and Kills ~ Age | Days to see yourself
-          # browser() use this to see yourself and click next at console 
           model <- switch(choice,
                         "Poisson" = glm(form, data = dat, family = poisson(link = "log")),
                         "Quasi-Poisson" = glm(form, data = dat, family = quasipoisson(link = "log")),
                         "Negative Binomial" = MASS::glm.nb(form, data = dat),
-                        "Zero-Inflated Poisson" = zeroinfl(form, data = dat, dist = "poisson"), # Crashes
-                        "Zero Inflated Negative Binomial" = zeroinfl(form, data = dat, dist = "negbin"),
                         "Tweedie" = glm(form, data = dat, family = statmod::tweedie(1.5, 0)),
-                        # Default fallback
-                        glm(form, data = dat, family = poisson(link = "log")) 
+                        NULL
           )
           
+          if (grepl("\\|", form)) {
+            parts <- strsplit(form, "\\|")[[1]]
+            count_formula <- as.formula(parts[1])
+            zi_formula    <- as.formula(paste("~", trimws(parts[2])))
+            
+          } else {
+            count_formula <- as.formula(form)
+            zi_formula    <- ~ 1
+          }
           
           
           
-          model$call <- substitute(
-                FUNC(formula = F_VAL, data = D_VAL, family = FAM_VAL),
-                list(
-                  FUNC = as.name(if(choice %in% c("Poisson", "Quasi-Poisson", "Tweedie")) "glm" else 
-                                 if(choice == "Negative Binomial") "glm.nb" else "zeroinfl"),
-                  F_VAL = form,
-                  D_VAL = quote(dataset),# maybe issue
-                  FAM_VAL = if(choice == "Poisson") quote(poisson(link="log")) else 
-                            if(choice == "Quasi-Poisson") quote(quasipoisson(link="log")) else
-                            if(choice == "Tweedie") quote(statmod::tweedie(1.5, 0)) else NULL
-                )
+          if (choice == "Zero-Inflated Poisson"){
+              model <- glmmTMB(
+                formula   = count_formula,
+                ziformula = zi_formula,
+                data      = dat,
+                family    = 'poisson'
               )
+          }
+          
+          else if(choice == "Zero Inflated Negative Binomial" ){
+            model <- glmmTMB(
+              formula   = count_formula,
+              ziformula = zi_formula,
+              data      = dat,
+              family    = 'nbinom2'
+            )
+            
+          }
+            
+            
+          if (choice %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")) {
+            # Call for glmmTMB
+            model$call <- substitute(
+              glmmTMB(formula = F_VAL, ziformula = Z_VAL, data = D_VAL, family = FAM_VAL),
+              list(
+                F_VAL   = count_formula,
+                Z_VAL   = zi_formula,
+                D_VAL   = quote(dat), # Make sure this matches your actual data object name
+                FAM_VAL = if(choice == "Zero-Inflated Poisson") "poisson" else "nbinom2"
+              )
+            )
+          } else {
+            # Call for standard GLM/NB
+            model$call <- substitute(
+              FUNC(formula = F_VAL, data = D_VAL, family = FAM_VAL),
+              list(
+                FUNC    = as.name(if(choice == "Negative Binomial") "glm.nb" else "glm"),
+                F_VAL   = count_formula,
+                D_VAL   = quote(dat),
+                FAM_VAL = if(choice == "Poisson") quote(poisson(link="log")) else 
+                          if(choice == "Quasi-Poisson") quote(quasipoisson(link="log")) else
+                          if(choice == "Tweedie") quote(statmod::tweedie(1.5, 0)) else NULL
+              )
+            )
+          }
+          
           if(is.null(model$call$family)) model$call$family <- NULL
+          
+          
           
           model
         }, error = function(e){
@@ -1063,7 +1105,8 @@ server <- (function(input, output, session){
           return(NULL)
         }
         
-        if (!(inherits(model, "glm") | inherits(model, "zeroinfl"))) {
+        
+        if (!(inherits(model, "glm") | inherits(model, "glmmTMB"))) {
           run <- FALSE
         }
         
@@ -1071,15 +1114,18 @@ server <- (function(input, output, session){
       
       
       if(run){ # NOTE THIS IS WHERE ALL PLOTS AND THINGS HAPPEN
-       
         
-        showModal(modalDialog("Things are happening in the background!", footer=NULL))
-        globalVars$model <- model
-        
-        globalVars$modelsummary <- prepare_model_summary() # new crash for zip yay progress
-       # globalVars$prepare_model_interp <- prepare_model_interp()
         
 
+        
+        showModal(modalDialog("Things are happening in the background!", footer=NULL))
+        
+        globalVars$model <- model
+        globalVars$modelsummary <- prepare_model_summary() 
+        
+        
+        
+       # globalVars$prepare_model_interp <- prepare_model_interp()
         # globalVars$anova <- prepare_anova()
       #  globalVars$prepare_anova_interp <- prepare_anova_interp()
         
@@ -1095,14 +1141,11 @@ server <- (function(input, output, session){
           shinyjs::hide("anova_fctcomp")
         }
         
-        
-        
+
         globalVars$make_ggpairs_plot <- make_ggpairs_plot()
         globalVars$make_ggpairs_summary <- make_ggpairs_summary()
         
-        
-        
-        
+
         globalVars$RQRPlot <- tryCatch({ # (NOTE PLOT) 2 
           RQRPlot()
         }, error = function(e) {
@@ -1159,32 +1202,73 @@ server <- (function(input, output, session){
     req(globalVars$model)
     mod_type <- globalVars$model_choice
     
-    
+
     dat <- globalVars$dataset
     model <- globalVars$model
     
-    
-  
-    
-  
+
     if (mod_type == "Zero-Inflated Poisson" || mod_type == "Zero Inflated Negative Binomial"){
       metaExpr({
-        "####################################"
-        "#Summarize Zero Model"
-        "####################################" 
-        ci <- confint(model)
         
-        "####################################"
-        "# Add Confidence Intervals"
-        "####################################"  
-        zero.mod.sum <- summary(model)$coefficient$zero
-        ci.zero <- ci[grep("zero_", rownames(ci)), ]
+        zero.mod.sum <- summary(model)$coefficient$zi # has city things
+        count.mod.sum <- summary(model)$coefficient$cond 
+        
+        ci <- as.data.frame(confint(model))
+        
+        ci <- ci[, -ncol(ci)]
+        
+        
+        
+        ci.zero <- ci[grep("^zi\\.", rownames(ci)), ]
+        rownames(ci.zero) <- gsub("^zi\\.", "", rownames(ci.zero))
+        ci.zero_to_keep <- ci.zero[, c("2.5 %", "97.5 %")]
+        
+        
+        ci.count <- ci[grep("^cond\\.", rownames(ci)), ]
+        rownames(ci.count) <- gsub("^cond\\.", "", rownames(ci.count))
+        ci.count_to_keep <- ci.count[, c("2.5 %", "97.5 %")]
+        
+        
         mod.table_zero <- cbind(zero.mod.sum, ci.zero)
+        mod.table_count <- cbind(count.mod.sum, ci.count_to_keep)
         
         "####################################"
-        "# Clean Up Labels for Zero Model Printing"
+        "# Clean Up Labels for Printing"
         "####################################"
-        mod.classes<-sapply(X = mod.camera.zip$model, FUN = class)[-1]
+        mod.classes<-sapply(X = model$model, FUN = class)[-1]
+        mod.classes<-mod.classes[which(mod.classes=="factor")]
+        for(vname in names(mod.classes)){
+          ind <- grepl(x=rownames(mod.table_count), pattern = vname)
+          ind.int <- grepl(x=rownames(mod.table_count), pattern = ":")
+          
+          indexes.int<- ind & ind.int
+          indexes <- xor(ind, indexes.int)
+          
+          varval  <- str_remove_all(rownames(mod.table_count)[indexes], vname)
+          rownames(mod.table_count)[indexes]<-paste(vname, " = ", varval, sep="")
+          
+          if(any(indexes.int)){
+            for(i in which(indexes.int)){
+              intname <- rownames(mod.table_count)[i]
+              vname.unique <- str_replace(string = intname, pattern = paste(rownames(mod.table_count)[(!indexes)&(!ind.int)],collapse ="|"), replacement = "")
+              varval  <- str_remove_all(vname.unique, pattern = vname)
+              varval  <- str_remove_all(varval, pattern = "[:]")
+              
+              rname<-str_remove_all(string = rownames(mod.table_count)[i], pattern = vname)
+              rname<-str_remove_all(string = rname, pattern = varval)
+              rname<-str_remove_all(string = rname, pattern = "[:]")
+              
+              rownames(mod.table_count)[i]<- paste(rname," : (",vname, " = ", varval,")", sep="")
+            }
+          }
+          
+        }
+        
+        
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        mod.classes<-sapply(X = model$model, FUN = class)[-1]
         mod.classes<-mod.classes[which(mod.classes=="factor")]
         for(vname in names(mod.classes)){
           ind <- grepl(x=rownames(mod.table_zero), pattern = vname)
@@ -1211,58 +1295,8 @@ server <- (function(input, output, session){
             }
           }
           
-          
         }
-        
-        "####################################"
-        "#Summarize Count Model" 
-        "####################################" 
 
-        count.mod.sum <- summary(model)$coefficient$count
-        
-        "####################################"
-        "# Add Confidence Intervals"
-        "####################################"  
-        ci.count <- ci[grep("count_", rownames(ci)), ]
-        mod.table_count <- cbind(count.mod.sum, ci.count)
-        
-        "####################################"
-        "# Clean Up Labels for Count Model Printing"
-        "####################################"
-        mod.classes<-sapply(X = mod.camera.zip$model, FUN = class)[-1]
-        mod.classes<-mod.classes[which(mod.classes=="factor")] #Maybe cause issued doubt it thou
-        for(vname in names(mod.classes)){
-          ind <- grepl(x=rownames(mod.table_count), pattern = vname)
-          ind.int <- grepl(x=rownames(mod.table_count), pattern = ":")
-          
-          indexes.int<- ind & ind.int
-          indexes <- xor(ind, indexes.int)
-          
-          varval  <- str_remove_all(rownames(mod.table_count)[indexes], vname)
-          rownames(mod.table_count)[indexes]<-paste(vname, " = ", varval, sep="")
-          
-          if(any(indexes.int)){
-            for(i in which(indexes.int)){
-              intname <- rownames(mod.table_count)[i]
-              vname.unique <- str_replace(string = intname, pattern = paste(rownames(mod.table_count)[(!indexes)&(!ind.int)],collapse ="|"), replacement = "")
-              varval  <- str_remove_all(vname.unique, pattern = vname)
-              varval  <- str_remove_all(varval, pattern = "[:]")
-              
-              rname<-str_remove_all(string = rownames(mod.table_count)[i], pattern = vname)
-              rname<-str_remove_all(string = rname, pattern = varval)
-              rname<-str_remove_all(string = rname, pattern = "[:]")
-              
-              rownames(mod.table_count)[i]<- paste(rname," : (",vname, " = ", varval,")", sep="")
-            }
-          }
-          
-          
-        }
-        
-        "####################################"
-        "# Formating Tables"
-        "####################################"
-        
         
         mod.table_count <- data.frame(mod.table_count) %>% 
           mutate("Term" = rownames(.), "Model Part" = "Count Model") %>% 
@@ -1270,13 +1304,17 @@ server <- (function(input, output, session){
           set_rownames(NULL) %>%
           set_colnames(c("Term", "Model Part", "Estimate", "SE", "z", "p-value", "Lower CI", "Upper CI"))
         
+
+        
+        
+        # 2. FORMAT Zero Table
         mod.table_zero <- data.frame(mod.table_zero) %>% 
           mutate("Term" = rownames(.), "Model Part" = "Zero-Inflation") %>% 
           relocate(Term, `Model Part`) %>%  
           set_rownames(NULL) %>%
           set_colnames(c("Term", "Model Part", "Estimate", "SE", "z", "p-value", "Lower CI", "Upper CI"))
         
-        
+
         
         mod.table_final <- rbind(mod.table_count, mod.table_zero)
         
@@ -1385,37 +1423,39 @@ server <- (function(input, output, session){
   
   
   ########################################################
-  # Zero Inflated Test NEED SERIOUS FIXING TOMM NOTE
+  # Zero Inflated Test NEED SERIOUS FIXING TOMM NOTE only for tweezerAno
   ########################################################
   
   ZeroInflated <-metaReactive2({
     req(globalVars$model)
     dat <- globalVars$dataset
     model <- globalVars$model
+    mod_type <- globalVars$model_choice
     
+
     
-  
-    metaExpr({
-      # response
-    obs_zeros <- sum(model$y == 0)
+    if(mod_type == "Zero Inflated Negative Binomial" || mod_type == "Zero-Inflated Poisson"){
       
-    
-    numZeros <-rep(NA,1000)
-    
-    for (i in 1:1000){
-      numZeros[i] <- sum(simulate(model) == 0)
-    }
-    
-    mean(numZeros <= obs_zeros)
-    
-    
-    sim_data <- data.frame(zeros = numZeros)
-    
-    ggplot(sim_data, aes(x = zeros)) +
-      geom_histogram(aes(y = after_stat(density)), 
-                     binwidth = 1, 
-                     fill = "#5b5b5b", 
-                     color = "blue") +
+
+      metaExpr({
+      # response
+      obs_zeros <- sum(model$frame[1] == 0)
+      numZeros <-rep(NA,1000)
+      
+      for (i in 1:1000){
+        numZeros[i] <- sum(simulate(model) == 0)
+      }
+      
+      mean(numZeros <= obs_zeros)
+      
+      
+      sim_data <- data.frame(zeros = numZeros)
+      
+      ggplot(sim_data, aes(x = zeros)) +
+        geom_histogram(aes(y = after_stat(density)), 
+                       binwidth = 1, 
+                       fill = "#5b5b5b", 
+                       color = "blue") +
       
       geom_vline(xintercept = obs_zeros, 
                  color = "red", 
@@ -1429,6 +1469,44 @@ server <- (function(input, output, session){
       theme_bw()
     
     })
+    }
+    else{
+      metaExpr({
+        # response
+        obs_zeros <- sum(model$y == 0)
+        
+        numZeros <-rep(NA,1000)
+        
+        for (i in 1:1000){
+          numZeros[i] <- sum(simulate(model) == 0)
+        }
+        
+        mean(numZeros <= obs_zeros)
+        
+        
+        sim_data <- data.frame(zeros = numZeros)
+        
+        ggplot(sim_data, aes(x = zeros)) +
+          geom_histogram(aes(y = after_stat(density)), 
+                         binwidth = 1, 
+                         fill = "#5b5b5b", 
+                         color = "blue") +
+          
+          geom_vline(xintercept = obs_zeros, 
+                     color = "red", 
+                     linetype = "dotted", 
+                     linewidth = 1) +
+          
+          labs(title = "Assessing Zero Inflation",
+               x = "Observed Zeros",
+               y = "Density") +
+          
+          theme_bw()
+        
+      })
+      
+      
+    }
   
   })
   
@@ -1448,7 +1526,7 @@ server <- (function(input, output, session){
     }
   )
   
-  observeEvent(input$code_ZeroInflated, { #NEEDS FIXINGGG
+  observeEvent(input$code_ZeroInflated, {
     code <- expandChain(
       "# Ensure to load your data as an object called dat.",
       quote({
@@ -1541,45 +1619,6 @@ server <- (function(input, output, session){
   })
   
   
-  #########################################################
-  # Helper Function
-  #########################################################
-  
-  dznbinom <- function(y, mu, theta, pi) {
-    probs <- numeric(length(y))
-    probs[y == 0] <- pi[y == 0] + (1 - pi[y == 0]) * (theta / (mu[y == 0] + theta))^theta
-    probs[y > 0] <- (1 - pi[y > 0]) * dnbinom(y[y > 0], size = theta, mu = mu[y > 0])
-    return(probs)
-  }
-  
-  pznbinom <- function(q, mu, theta, pi) {
-    probs <- numeric(length(q))
-    if(length(pi) == 1) pi <- rep(pi, length(q))
-    if(length(mu) == 1) mu <- rep(mu, length(q))
-    probs[q < 0] <- 0
-    idx <- q >= 0
-    probs[idx] <- pi[idx] + (1 - pi[idx]) * pnbinom(q[idx], size = theta, mu = mu[idx])
-    
-    return(probs)
-  }
-  
-  dzpois <- function(y, lambda, pi) {
-    probs <- numeric(length(y))
-    n <- length(y)
-    probs[y == 0] <- pi[y == 0] + (1 - pi[y == 0]) * exp(-lambda[y == 0])
-    probs[y > 0] <- (1 - pi[y > 0]) * dpois(y[y > 0], lambda[y > 0])
-    return(probs)
-  }
-  
-  pzpois <- function(q, lambda, pi) {
-    probs <- numeric(length(q))
-    probs[q < 0] <- 0
-    idx <- q >= 0
-    probs[idx] <- pi[idx] + (1 - pi[idx]) * ppois(q[idx], lambda[idx])
-    
-    return(probs)
-  }
- 
   ##########################################################
   # RQR Plots
   ##########################################################
@@ -1590,69 +1629,39 @@ server <- (function(input, output, session){
   model <- globalVars$model
   mod_type <- globalVars$model_choice
   
-  if (mod_type == "Zero-Inflated Poisson"){
-    counts <- model$y
-    lambdas <- fitted(model, type = "count")
-    pis <- predict(model, type = "zero")
-    rqr <- rep(NA, length(lambdas))
-    for(i in 1:length(lambdas)){
-      ai <- pzpois(counts[i]-1, lambda=lambdas[i], pi=pis[i])
-      bi <- pzpois(counts[i], lambda=lambdas[i], pi=pis[i])
-      # this works even when ai=bi
-      ui <- ai + runif(1) * (bi - ai)
-      ui <- max(min(ui, 1-10^(-6)), 10^(-6))
-      rqr[i] <- qnorm(ui)
-    }
+  if (mod_type == "Zero-Inflated Poisson" || mod_type == "Zero Inflated Negative Binomial"){
     
+    metaExpr({
     
-    pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
-    p1 <- ggplot(data=tibble(lambda=lambdas,
-                             e=rqr)) + 
-      geom_hline(yintercept=0, linetype="dotted")+
-      geom_point(aes(x=lambda, y=e)) +
-      theme_bw()+
-      xlab(bquote(lambda))+
-      ylab("Randomized Quantile Residuals")
-    p2 <- ggplot(data=tibble(e=rqr)) +
-      stat_qq(aes(sample=e)) +
-      stat_qq_line(aes(sample=e)) +
+    # Your r^2 vs Lambda implementation
+    ggdat <- tibble(r2= resid(model, type = "pearson")^2,
+                    lambdas = fitted(model))
+    p2 <- ggplot(ggdat) +
+      geom_point(aes(x=lambdas, y=r2)) +
+      geom_hline(yintercept = 1, linetype="dotted", color="red") +
+      geom_smooth(aes(x=lambdas, y=r2), color="black") +
       theme_bw() +
-      ggtitle(paste("Dispersion Ratio =", round(pearson.ratio, 4)))
-    p1+p2
-
-  }
-
-  else if(mod_type == "Zero Inflated Negative Binomial"){
+      labs(title = "Pearson Residuals", x = bquote(lambdas), y = bquote(r^2))
     
-    counts <- model$y
-    mus <- predict(model, type = "count")
-    pis <- predict(model, type = "zero")
-    rqr <- rep(NA, length(mus))
-    for(i in 1:length(mus)){
-      ai <- pznbinom(counts[i]-1, theta=model$theta, 
-                     mu=mus[i], pi=pis[i])
-      bi <- pznbinom(counts[i], theta=model$theta, 
-                     mu=mus[i], pi=pis[i])
-      # this works even when ai=bi
-      ui <- ai + runif(1) * (bi - ai)
-      ui <- max(min(ui, 1-10^(-6)), 10^(-6))
-      rqr[i] <- qnorm(ui)
-    }
+
+    res <- simulateResiduals(model)
+    ggdat <- data.frame(
+      fitted = res$fittedPredictedResponse, # This is your 'lambdas'
+      rqr = res$scaledResiduals             # These are your 'rqr' values (0 to 1)
+    )
     
-    pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
-    p1 <- ggplot(data=tibble(mu=mus,
-                             e=rqr)) + 
-      geom_hline(yintercept=0, linetype="dotted")+
-      geom_point(aes(x=mu, y=e)) +
-      theme_bw()+
-      xlab(bquote(mu))+
-      ylab("Randomized Quantile Residuals")
-    p2 <- ggplot(data=tibble(e=rqr)) +
-      stat_qq(aes(sample=e)) +
-      stat_qq_line(aes(sample=e)) +
+    ggdat$rqr_norm <- qnorm(ggdat$rqr)
+    
+    # 3. Create the Plot
+    p1 <- ggplot(data = ggdat, aes(x = fitted, y = rqr_norm)) + 
+      geom_hline(yintercept = 0, linetype = "dotted", color = "red") +
+      geom_point(alpha = 0.5) +
       theme_bw() +
-      ggtitle(paste("Dispersion Ratio =", round(pearson.ratio, 4)))
-    p1+p2
+      labs(title = "Randomized Quantile Residuals", x = "Fitted Values", y = "Residuals")
+    
+    p1 + p2
+    
+    })
     
 
   }else {
@@ -1758,89 +1767,105 @@ make_check_plot <- metaReactive2({
   req(globalVars$model)
   model<-globalVars$model
   mod_type <-  globalVars$model_choice
-  
-  
-    if (mod_type == "Zero-Inflated Poisson" || mod_type == "Zero Inflated Negative Binomial"){
-    
-    "####################################"
-    "# 1. Zero-Inflation Check (p1)"
-    "####################################"
-    
 
-    obs_zeros <- sum(model$y == 0)
+    if (mod_type == "Zero-Inflated Poisson" || mod_type == "Zero Inflated Negative Binomial"){
+      obs_zeros <- sum(model$frame[1] == 0)
+      
+      numZeros <-rep(NA,1000)
+      
+      for (i in 1:1000){
+        numZeros[i] <- sum(simulate(model) == 0)
+      }
+      
+      mean(numZeros <= obs_zeros)
+      
+      sim_data <- data.frame(zeros = numZeros)
+      
+      p1 <- ggplot(sim_data, aes(x = zeros)) +
+        geom_histogram(aes(y = after_stat(density)), 
+                       binwidth = 1, 
+                       fill = "#5b5b5b", 
+                       color = "blue") +
+        
+        geom_vline(xintercept = obs_zeros, 
+                   color = "red", 
+                   linetype = "dotted", 
+                   linewidth = 1) +
+        
+        labs(title = "Assessing Zero Inflation",
+             x = "Observed Zeros",
+             y = "Density") +
+        
+        theme_bw()
+      
+      
+      "####################################"
+      "# 2. Overdispersion Check (p2)"
+      "####################################"
+      # Your r^2 vs Lambda implementation
+      ggdat <- tibble(r2= resid(model, type = "pearson")^2,
+                      lambdas = fitted(model))
+      p2 <- ggplot(ggdat) +
+        geom_point(aes(x=lambdas, y=r2)) +
+        geom_hline(yintercept = 1, linetype="dotted", color="red") +
+        geom_smooth(aes(x=lambdas, y=r2), color="black") +
+        theme_bw() +
+        labs(title = "Pearson Residuals", x = bquote(lambdas), y = bquote(r^2))
+      
+      
+      "####################################"
+      "# 3. RQR PLOT"
+      "####################################"
+      
+      
+      res <- simulateResiduals(model)
+      
+      ggdat <- data.frame(
+        fitted = res$fittedPredictedResponse, # This is your 'lambdas'
+        rqr = res$scaledResiduals             # These are your 'rqr' values (0 to 1)
+      )
+      
+      ggdat$rqr_norm <- qnorm(ggdat$rqr)
+      
+      # 3. Create the Plot
+      p3 <- ggplot(data = ggdat, aes(x = fitted, y = rqr_norm)) + 
+        geom_hline(yintercept = 0, linetype = "dotted", color = "red") +
+        geom_point(alpha = 0.5) +
+        theme_bw() +
+        labs(title = "Randomized Quantile Residuals", x = "Fitted Values", y = "Residuals")
+      
+      
+      
+      "####################################"
+      "# 4. Pearson Res vs. Index (p4)"
+      "####################################"
+      res <- residuals(model, type = "pearson")
+      ggdat_res <- data.frame(obs = 1:length(res), res = res)
+      
+      # Logic for outlier highlighting
+      ggdat_res <- ggdat_res %>% 
+        mutate(Outlier = ifelse(abs(res) > 3, "Red", ifelse(abs(res) > 2, "Orange", "Normal")))
+      
+      p4 <- ggplot(ggdat_res, aes(x = obs, y = res, color = Outlier)) +
+        geom_point(shape = 1) +
+        scale_color_manual(values = c("Normal" = "black", "Orange" = "orange", "Red" = "red")) +
+        geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
+        geom_hline(yintercept = c(-3, -2, 2, 3), linetype = "dotted", alpha = 0.5) +
+        theme_bw() +
+        theme(legend.position = "none") +
+        labs(title = "Pearson Residuals vs Index", x = "Observation Number", y = "Residual")
+      
+      "####################################"
+      "# Print ZIP Diagnostic Grid"
+      "####################################"
+      (p1 | p2) / (p3 | p4)
     
-    pred_prob <- predict(model, type = "prob")[,1]
-    pred_zeros <- sum(pred_prob)
-    
-    zero_dat <- data.frame(
-      Type = c("Observed", "Predicted"),
-      Count = c(obs_zeros, pred_zeros)
-    )
-    
-    p1 <- ggplot(zero_dat, aes(x = Type, y = Count, fill = Type)) +
-      geom_bar(stat = "identity", width = 0.6) +
-      theme_bw() +
-      scale_fill_manual(values = c("red", "black")) +
-      labs(title = "Zero-Inflation Check", subtitle = "Observed vs. Expected Zeros")
-    
-    "####################################"
-    "# 2. Overdispersion Check (p2)"
-    "####################################"
-    # Your r^2 vs Lambda implementation
-    ggdat <- tibble(r2= resid(model, type = "pearson")^2,
-                    lambdas = fitted(model))
-    ggplot(ggdat) +
-      geom_point(aes(x=lambdas, y=r2)) +
-      geom_hline(yintercept = 1, linetype="dotted", color="red") +
-      geom_smooth(aes(x=lambdas, y=r2), color="black") +
-      theme_bw() +
-      xlab(bquote(lambda)) +
-      ylab(bquote(r^2))
-    
-    "####################################"
-    "# 3. Predicted vs. Observed Counts (p3)"
-    "####################################"
-    ggdat_fit <- data.frame(
-      observed = model$y,
-      predicted = predict(model, type = "response")
-    )
-    
-    p3 <- ggplot(ggdat_fit, aes(x = predicted, y = observed)) +
-      geom_point(alpha = 0.5, shape = 1) +
-      geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
-      theme_bw() +
-      labs(title = "Model Accuracy", x = "Predicted Count", y = "Observed Count")
-    
-    "####################################"
-    "# 4. Pearson Res vs. Index (p4)"
-    "####################################"
-    res <- residuals(model, type = "pearson")
-    ggdat_res <- data.frame(obs = 1:length(res), res = res)
-    
-    # Logic for outlier highlighting
-    ggdat_res <- ggdat_res %>% 
-      mutate(Outlier = ifelse(abs(res) > 3, "Red", ifelse(abs(res) > 2, "Orange", "Normal")))
-    
-    p4 <- ggplot(ggdat_res, aes(x = obs, y = res, color = Outlier)) +
-      geom_point(shape = 1) +
-      scale_color_manual(values = c("Normal" = "black", "Orange" = "orange", "Red" = "red")) +
-      geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
-      geom_hline(yintercept = c(-3, -2, 2, 3), linetype = "dotted", alpha = 0.5) +
-      theme_bw() +
-      theme(legend.position = "none") +
-      labs(title = "Pearson Residuals", x = "Observation Number", y = "Residual")
-    
-    "####################################"
-    "# Print ZIP Diagnostic Grid"
-    "####################################"
-    (p1 | p2) / (p3 | p4)
     
     
     
   }
   else{
   metaExpr({
-    
     
     "####################################"
     "# Create Data for Leverage Plot"
@@ -1998,7 +2023,9 @@ observeEvent(input$check_obs, {
 # Code to create plot
 make_ggpairs_plot <- metaReactive2({
   req(globalVars$model)
-  model<-globalVars$model
+  model<- globalVars$model
+  choice <- globalVars$model_choice
+  
   metaExpr({
     "####################################"
     "# Create Pairwise Plots"
@@ -2007,11 +2034,25 @@ make_ggpairs_plot <- metaReactive2({
     # problem: can we make discrete a better plot? (mosaic?)
     upper <- list(continuous = "points", discrete = wrap("colbar", size = 0), combo = "box_no_facet", na = "na")
     lower <- list(continuous = "cor", discrete = wrap("colbar", size = 0), combo = "box_no_facet", na = "na")
-    ggpairs(model$model, progress = F, upper = upper, lower = lower) +
-      theme_bw()+
-      theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
-      scale_fill_grey()+
-      scale_color_grey()
+    
+    
+    if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
+      ggpairs(model$frame, progress = F, upper = upper, lower = lower) +
+        theme_bw()+
+        theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
+        scale_fill_grey()+
+        scale_color_grey()
+      
+    }
+    else{
+      
+      
+      ggpairs(model$model, progress = F, upper = upper, lower = lower) +
+        theme_bw()+
+        theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
+        scale_fill_grey()+
+        scale_color_grey()
+    }
   })
 },inline=TRUE)
 
@@ -2077,25 +2118,50 @@ observeEvent(input$code_ggpairsplot, {
 # Code to create table
 make_ggpairs_summary <- metaReactive2({
   req(globalVars$model)
-  model<-globalVars$model
+  model <- globalVars$model
+  choice <-  globalVars$model_choice
   
-  metaExpr({
-    "####################################"
-    "# Create Data for Correlation Matrix"
-    "####################################"
-    modmatrix <- model$model %>% 
-      select_if(is.numeric)
-    cormats<-Hmisc::rcorr(as.matrix(modmatrix), type = "pearson")
-    cormat<-round(cormats$r,4)
-    pmat<-as.matrix(data.frame(stars.pval(cormats$P)))
-    "####################################"
-    "# Create Correlation Matrix"
-    "####################################"
-    cormat<-matrix(paste(cormat, pmat, sep=""),nrow(cormats$r),ncol(cormats$r))
-    rownames(cormat)<-colnames(cormats$r)
-    colnames(cormat)<-rownames(cormats$r)
-    data.frame(cormat)
-  })
+  if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
+    
+    metaExpr({
+      "####################################"
+      "# Create Data for Correlation Matrix"
+      "####################################"
+      modmatrix <- model$frame %>% 
+        select_if(is.numeric)
+      cormats<-Hmisc::rcorr(as.matrix(modmatrix), type = "pearson")
+      cormat<-round(cormats$r,4)
+      pmat<-as.matrix(data.frame(stars.pval(cormats$P)))
+      "####################################"
+      "# Create Correlation Matrix"
+      "####################################"
+      cormat<-matrix(paste(cormat, pmat, sep=""),nrow(cormats$r),ncol(cormats$r))
+      rownames(cormat)<-colnames(cormats$r)
+      colnames(cormat)<-rownames(cormats$r)
+      data.frame(cormat)
+    })
+    
+  }
+  else{
+  
+    metaExpr({
+      "####################################"
+      "# Create Data for Correlation Matrix"
+      "####################################"
+      modmatrix <- model$model %>% 
+        select_if(is.numeric)
+      cormats<-Hmisc::rcorr(as.matrix(modmatrix), type = "pearson")
+      cormat<-round(cormats$r,4)
+      pmat<-as.matrix(data.frame(stars.pval(cormats$P)))
+      "####################################"
+      "# Create Correlation Matrix"
+      "####################################"
+      cormat<-matrix(paste(cormat, pmat, sep=""),nrow(cormats$r),ncol(cormats$r))
+      rownames(cormat)<-colnames(cormats$r)
+      colnames(cormat)<-rownames(cormats$r)
+      data.frame(cormat)
+    })
+  }
 },inline=TRUE)
 
 # Render table to UI

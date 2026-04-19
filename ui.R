@@ -229,7 +229,10 @@ ui <- tagList(
                                     ),
                                     tabPanel("Assumptions", value="assumptions",
                                              fluidPage(h1("Assumptions for Regression"),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(),
+                                                       
                                                        fluidRow(
+                                                         
                                                          column(4, style = "background-color:#ecf0f1;", tags$hr(), br(),
                                                                 h4("Make sure that you satisfy all linear regression assumptions:"), br(),
                                                                 # Assumption 1
