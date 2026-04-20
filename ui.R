@@ -142,7 +142,7 @@ ui <- tagList(
                                                     p("The researchers noted prior studies that assess the effects of age on the ability to forage, there was a notable gap in evaluating strength and skill as predictors of hunting ability."),
                                                     p("More specifically, the researchers hypothesize that proficiency in hunting is associated with learning prior to and after a hunter matures physically, while accounting for hunting duration."),
                                                     tags$hr(),
-                                                    wellPanel(strong("Kills ~ Age + I(Age^2) + offset(log(Days)"))
+                                                    wellPanel(strong("Kills ~ Age + I(Age)^2 + offset(log(Days)"))
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
@@ -154,7 +154,13 @@ ui <- tagList(
                                            
                                            
                                   ),
-                                  tabPanel("Example 2")
+                                  tabPanel("Example 2",
+                                           h1("Example 2", align = "center"),
+                                           tags$div(class = "paragraph", tags$hr(),
+                                                    tags$img(src = "Shaw.png", height = "1200px", width = "1000px")
+   
+                                          )
+                                  )
                       ) # acts as a contained for multiple tabPanel()
              ),
              tabPanel("Dataset & Model",
