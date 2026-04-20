@@ -821,6 +821,8 @@ server <- (function(input, output, session){
       uncheckAllAssumptions()
       hideAllTabs()
       
+      #browser()
+      
       
       if(input$model_choice %in% c("Poisson", "Negative Binomial")){
         shinyjs::show("asmp_5A")
@@ -960,6 +962,8 @@ server <- (function(input, output, session){
       if(run){
         # Try to fit model
         model <- tryCatch({
+          
+        #  browser()
           
           
           choice <- globalVars$model_choice
