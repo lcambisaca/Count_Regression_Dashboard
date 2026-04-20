@@ -259,6 +259,10 @@ ui <- tagList(
                                                                 hidden(checkboxInput("asmp_5B", HTML("The model has a mixed process for generating zeroes and counts"), FALSE)), #NOTE: MAY NEED TO ADD PLOT FOR THIS
                                                                 hidden(div(id='asmp_5Bnote', htmlOutput("asmp_5B"))),
                                                                 
+                                                                #Assumption 6
+                                                                checkboxInput("asmp_6", "The data is well fit by the chosen model", FALSE),
+                                                                hidden(div(id='asmp_6note', htmlOutput("asmp_6"))),
+                                                                
                                                                 br(),
                                                                 actionButton("check_asmp", strong("Check Assumptions")), br(), br(),    # Button to check all assumptions
                                                                 # Hidden divs are displayed only for two-sample independent test

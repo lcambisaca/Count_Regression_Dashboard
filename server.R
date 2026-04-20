@@ -93,6 +93,7 @@ server <- (function(input, output, session){
     }, once = TRUE)
   })
   
+  
   shinyjs::hide("interaction_analysis")
   shinyjs::hide("var_inter")
   shinyjs::hide("var_moderator")
@@ -319,6 +320,7 @@ server <- (function(input, output, session){
     shinyjs::hide("asmp_4note")
     shinyjs::hide("asmp_5Anote")
     shinyjs::hide("asmp_5Bnote")
+    shinyjs::hide("asmp_6note")
     shinyjs::hide("all")
     shinyjs::hide("asmp_note")
     updateCheckboxInput(session, "asmp_1", value = FALSE)
@@ -327,6 +329,7 @@ server <- (function(input, output, session){
     updateCheckboxInput(session, "asmp_4", value = FALSE)
     updateCheckboxInput(session, "asmp_5A", value = FALSE)
     updateCheckboxInput(session, "asmp_5B", value = FALSE)
+    updateCheckboxInput(session, "asmp_6", value = FALSE)
     
     shinyjs::hide("ihs_button")
     shinyjs::hide("log_button")
