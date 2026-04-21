@@ -966,8 +966,6 @@ server <- (function(input, output, session){
         # Try to fit model
         model <- tryCatch({
           
-        #  browser()
-          
           
           choice <- globalVars$model_choice
           form <- globalVars$equation
@@ -991,9 +989,11 @@ server <- (function(input, output, session){
             zi_formula    <- ~ 1
           }
           
+        # browser()
           
           
           if (choice == "Zero-Inflated Poisson"){
+            # For some reason doesnt work with some interaction maybe due to sensitivity in poisson need to set up a try catch
               model <- glmmTMB(
                 formula   = count_formula,
                 ziformula = zi_formula,
@@ -1121,10 +1121,6 @@ server <- (function(input, output, session){
       
       
       if(run){ # NOTE THIS IS WHERE ALL PLOTS AND THINGS HAPPEN
-        
-        
-
-        
         showModal(modalDialog("Things are happening in the background!", footer=NULL))
         
         globalVars$model <- model
@@ -1133,8 +1129,8 @@ server <- (function(input, output, session){
         
         
        # globalVars$prepare_model_interp <- prepare_model_interp()
-        # globalVars$anova <- prepare_anova()
-      #  globalVars$prepare_anova_interp <- prepare_anova_interp()
+        globalVars$anova <- prepare_anova()
+        globalVars$prepare_anova_interp <- prepare_anova_interp()
         
         ### Show factor outputs, if necessary
         fct.vars <- names(which(attr(model$terms, "dataClasses")=="factor"))
@@ -1175,7 +1171,7 @@ server <- (function(input, output, session){
         })
         
         globalVars$make_check_plot <- make_check_plot() #Checks Outliers crashing here
-     #   globalVars$make_anova_num <- make_anova_num()
+        globalVars$make_anova_num <- make_anova_num()
         globalVars$make_model_summary <- make_model_summary()
 
         
@@ -1552,7 +1548,7 @@ server <- (function(input, output, session){
     
     displayCodeModal(
       code, 
-      title = "Interaction Marginal Effects Plot",
+      title = "Zero Inflation Test",
       size = "l", 
       fontSize = 16,
       clip=NULL
@@ -2052,8 +2048,6 @@ make_ggpairs_plot <- metaReactive2({
       
     }
     else{
-      
-      
       ggpairs(model$model, progress = F, upper = upper, lower = lower) +
         theme_bw()+
         theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
@@ -2240,59 +2234,108 @@ prepare_anova <- metaReactive2({
   req(globalVars$model)
   dat <- globalVars$dataset
   model <- globalVars$model
+  type <-  globalVars$model_choice
   
-  coef.table <- data.frame(summary(model)$coefficients) #Zip Gonna
-  int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
-
-  if(nrow(int.table)>0 && any(int.table[4]<0.05)){ #significant interaction
+ # browser()
+  if (type == "Zero-Inflated Poisson" || type == "Zero Inflated Negative Binomial"){
+    
+    coef.table <- data.frame(summary(model)$coefficients$cond)
+    int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
+    anova_type <- if(nrow(int.table) > 0 && any(int.table[,4] < 0.05)) "III" else "II"    
+    
     metaExpr({
+      
+      coef.table <- data.frame(summary(model)$coefficients$cond)
+      int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
+      anova_type <- if(nrow(int.table) > 0 && any(int.table[,4] < 0.05)) "III" else "II"    
+      
       "####################################"
-      "# ANOVA Table"
+      "# ANOVA Table Extraction"
       "####################################" 
-      anova.table <- Anova(model, type = "III", test = "LR")
-      null_deviance <- mod.nb2a$null.deviance
+      anova.cond <- Anova(model, type = anova_type, component = "cond", test = "Chisq")
+      anova.zi   <- Anova(model, type = anova_type, component = "zi",   test = "Chisq")
+      
+      null_loglik <- as.numeric(logLik(update(model, . ~ 1))) 
       
       "####################################"
-      "# Clean Up Labels for Printing"
+      "# Combine and Clean Up Labels"
       "####################################"
       
+      mod.table_count <- data.frame(anova.cond) %>% 
+        mutate(
+          "Term" = rownames(.), 
+          "Model Part" = "Count Model",
+          "Partial McFadden R2" = Chisq / (-2 * null_loglik)
+        ) %>% 
+        relocate(Term, `Model Part`) %>%  
+        set_rownames(NULL) %>%
+        set_colnames(c("Term", "Model Part", "LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2"))
       
-      anova.table <- as.data.frame(anova.table) %>%
-        mutate(Term = rownames(.)) %>%
-        relocate(Term) %>%
-        mutate(`Partial McFadden R2` = `LR Chisq` / null_deviance)%>%
-        rename(`p-value` = `Pr(>Chisq)`) %>%
-        mutate(`p-value` = if_else(`p-value` < 0.0001, 
-                                   "<0.0001", 
-                                   as.character(round(`p-value`, 4)))) %>%
-        set_colnames(c("Term","LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2")) %>%
-        set_rownames(NULL)
+      mod.table_zero <- data.frame(anova.zi) %>% 
+        mutate(
+          "Term" = rownames(.), 
+          "Model Part" = "Zero-Inflation Model",
+          "Partial McFadden R2" = Chisq / (-2 * null_loglik)
+        ) %>% 
+        relocate(Term, `Model Part`) %>%  
+        set_rownames(NULL) %>%
+        set_colnames(c("Term", "Model Part", "LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2"))
+      
+      
+      
+      anova.table <- rbind(mod.table_count,mod.table_zero)
+      
+
     })
-  }else{
+  }    
+
+  else{
+    coef.table <- data.frame(summary(model)$coefficients) 
+    int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
+    if(nrow(int.table)>0 && any(int.table[4]<0.05)){ #significant interaction
       metaExpr({
         "####################################"
         "# ANOVA Table"
         "####################################" 
-        anova.table <- Anova(model, type = "II", test = "LR")
-        null_deviance <- mod.nb2a$null.deviance
+        anova.table <- Anova(model, type = "III", test = "LR")
+        null_deviance <- model$null.deviance
         
-
         "####################################"
         "# Clean Up Labels for Printing"
         "####################################"
+        
+        
         anova.table <- as.data.frame(anova.table) %>%
           mutate(Term = rownames(.)) %>%
           relocate(Term) %>%
           mutate(`Partial McFadden R2` = `LR Chisq` / null_deviance)%>%
           rename(`p-value` = `Pr(>Chisq)`) %>%
-          mutate(`p-value` = if_else(`p-value` < 0.0001, 
-                                     "<0.0001", 
-                                     as.character(round(`p-value`, 4)))) %>%
           set_colnames(c("Term","LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2")) %>%
           set_rownames(NULL)
-        
-      }) 
+      })
+    }else{
+      metaExpr({
+          "####################################"
+          "# ANOVA Table"
+          "####################################" 
+          anova.table <- Anova(model, type = "II", test = "LR")
+          null_deviance <- model$null.deviance
+          
+  
+          "####################################"
+          "# Clean Up Labels for Printing"
+          "####################################"
+          anova.table <- as.data.frame(anova.table) %>%
+            mutate(Term = rownames(.)) %>%
+            relocate(Term) %>%
+            mutate(`Partial McFadden R2` = `LR Chisq` / null_deviance)%>%
+            rename(`p-value` = `Pr(>Chisq)`) %>%
+            set_colnames(c("Term","LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2")) %>%
+            set_rownames(NULL)
+          
+        }) 
     }
+  }
 #  }
   
 }, inline=TRUE)
@@ -2378,33 +2421,37 @@ output$anovainterp <- renderUI({
   globalVars$prepare_anova_interp
 })
 
+
+# Now Were here
 prepare_anova_interp <- function(){
   req(globalVars$anova)
   
   anova.table<-globalVars$anova %>%
-    mutate(e2.text = case_when(`Partial Epsilon-Squared`<0.02     ~ "minuscule and perhaps negligible.",
-                               `Partial Epsilon-Squared`>=0.02 & `Partial Epsilon-Squared`<0.12  ~ "small.",
-                               `Partial Epsilon-Squared`>=0.13 & `Partial Epsilon-Squared`<0.26  ~ "moderate.",
-                               `Partial Epsilon-Squared`>=0.26           ~ "large."))
+    mutate(e2.text = case_when(`Partial McFadden R2`<0.02     ~ "minuscule and perhaps negligible.",
+                               `Partial McFadden R2`>=0.02 & `Partial McFadden R2`<0.10  ~ "small.",
+                               `Partial McFadden R2`>=0.10 & `Partial McFadden R2`<0.20  ~ "moderate.",
+                               `Partial McFadden R2`>=0.20           ~ "large."))
   alpha <- input$alpha
   
   anova.interp <- NULL
   for(i in 1:(nrow(anova.table))){
-    if(anova.table$Term[i]=="Residuals"){
-      #do nothing
-    }else if(!grepl(x=anova.table$Term[i], pattern=":")){
+    if(grepl("Intercept", anova.table$Term[i], ignore.case = TRUE)){
+      #Skip
+    }
+
+    else if(!grepl(x=anova.table$Term[i], pattern=":")){ #HERE
       anova.interp <- (paste(anova.interp,"\U2022 The effect of ", sub("\\.scaled$", "", anova.table$Term[i]), " is ", ifelse(anova.table$`p-value`[i]<alpha, "significant ", "not significant "),
-                             "(F = ",  round(anova.table$F[i],4),
+                             "(LR Chisq (Deviance) = ",  round(anova.table$`LR Chisq (Deviance)`[i],4),
                              ", p-value ",  ifelse(anova.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova.table$`p-value`[i],4), sep="")), ").",
-                             ifelse(!is.na(anova.table[["Partial Epsilon-Squared"]][i]),
-                                    paste(" The effect size is ", round(anova.table[["Partial Epsilon-Squared"]][i], 3), ", which indicates that the effect is ", anova.table$e2.text[i], sep=""), ""),
+                             ifelse(!is.na(anova.table[["Partial McFadden R2"]][i]),
+                                    paste(" The effect size is ", round(anova.table[["Partial McFadden R2"]][i], 3), ", which indicates that the effect is ", anova.table$e2.text[i], sep=""), ""),
                              "<br/>", sep=""))
     }else{
       anova.interp <- (paste(anova.interp,"\U2022 The interactive effect of ", gsub("\\.scaled", "", anova.table$Term[i]), " is ", ifelse(anova.table$`p-value`[i]<alpha, "significant ", "not significant "),
-                             "(F = ", round(anova.table$F[i],4),
+                             "(LR Chisq (Deviance) = ", round(anova.table$`LR Chisq (Deviance)`[i],4),
                              ", p-value ",  ifelse(anova.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova.table$`p-value`[i],4), sep="")), ").",
-                             ifelse(!is.na(anova.table[["Partial Epsilon-Squared"]][i]),
-                                    paste(" The effect size is ", round(anova.table[["Partial Epsilon-Squared"]][i], 3), ", which indicates that the effect is ", anova.table$e2.text[i], sep=""), ""),
+                             ifelse(!is.na(anova.table[["Partial McFadden R2"]][i]),
+                                    paste(" The effect size is ", round(anova.table[["Partial McFadden R2"]][i], 3), ", which indicates that the effect is ", anova.table$e2.text[i], sep=""), ""),
                              "<br/>", sep=""))
     }
   }
