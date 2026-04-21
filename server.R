@@ -966,8 +966,6 @@ server <- (function(input, output, session){
         # Try to fit model
         model <- tryCatch({
           
-          #browser()
-          
           
           choice <- globalVars$model_choice
           form <- globalVars$equation
@@ -991,15 +989,16 @@ server <- (function(input, output, session){
             zi_formula    <- ~ 1
           }
           
+        # browser()
           
           
           if (choice == "Zero-Inflated Poisson"){
-            # For some reason doesnt work with interaction
+            # For some reason doesnt work with some interaction maybe due to sensitivity in poisson need to set up a try catch
               model <- glmmTMB(
                 formula   = count_formula,
                 ziformula = zi_formula,
                 data      = dat,
-                family    = 'poisson2'
+                family    = 'poisson'
               )
           }
           
@@ -1122,10 +1121,6 @@ server <- (function(input, output, session){
       
       
       if(run){ # NOTE THIS IS WHERE ALL PLOTS AND THINGS HAPPEN
-        
-        
-
-        
         showModal(modalDialog("Things are happening in the background!", footer=NULL))
         
         globalVars$model <- model
@@ -1553,7 +1548,7 @@ server <- (function(input, output, session){
     
     displayCodeModal(
       code, 
-      title = "Interaction Marginal Effects Plot",
+      title = "Zero Inflation Test",
       size = "l", 
       fontSize = 16,
       clip=NULL
@@ -2053,8 +2048,6 @@ make_ggpairs_plot <- metaReactive2({
       
     }
     else{
-      
-      
       ggpairs(model$model, progress = F, upper = upper, lower = lower) +
         theme_bw()+
         theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
@@ -2292,17 +2285,7 @@ prepare_anova <- metaReactive2({
       
       anova.table <- rbind(mod.table_count,mod.table_zero)
       
-      anova.table <- anova.table %>%
-        mutate(
-          # Convert p-value to character to allow for the "<0.0001" string
-          `p-value` = if_else(
-            `p-value` < 0.0001, 
-            "<0.0001", 
-            as.character(round(`p-value`, 4))
-          )
-        )
-   
-             
+
     })
   }    
 
@@ -2327,9 +2310,6 @@ prepare_anova <- metaReactive2({
           relocate(Term) %>%
           mutate(`Partial McFadden R2` = `LR Chisq` / null_deviance)%>%
           rename(`p-value` = `Pr(>Chisq)`) %>%
-          mutate(`p-value` = if_else(`p-value` < 0.0001, 
-                                     "<0.0001", 
-                                     as.character(round(`p-value`, 4)))) %>%
           set_colnames(c("Term","LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2")) %>%
           set_rownames(NULL)
       })
@@ -2350,9 +2330,6 @@ prepare_anova <- metaReactive2({
             relocate(Term) %>%
             mutate(`Partial McFadden R2` = `LR Chisq` / null_deviance)%>%
             rename(`p-value` = `Pr(>Chisq)`) %>%
-            mutate(`p-value` = if_else(`p-value` < 0.0001, 
-                                       "<0.0001", 
-                                       as.character(round(`p-value`, 4)))) %>%
             set_colnames(c("Term","LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2")) %>%
             set_rownames(NULL)
           
@@ -2449,8 +2426,6 @@ output$anovainterp <- renderUI({
 prepare_anova_interp <- function(){
   req(globalVars$anova)
   
-  browser()
-
   anova.table<-globalVars$anova %>%
     mutate(e2.text = case_when(`Partial McFadden R2`<0.02     ~ "minuscule and perhaps negligible.",
                                `Partial McFadden R2`>=0.02 & `Partial McFadden R2`<0.10  ~ "small.",
