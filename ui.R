@@ -107,17 +107,20 @@ ui <- tagList(
                       h3("How to use this app?", align="center"), 
                       tags$div(class = "paragraph", tags$hr(),
                                p("Step 1: To use this app, go to the 'Dataset & Model' tab and upload your .csv type dataset, or select a sample dataset."), 
-                               p("Step 2: Fit your model by inputting your desired regression equation in the form:"),
+                               p("Step 2: Choose the model that you wish to use to fit to your data. This can be updated later as well."),
+                               p("Step 3: Fit your model by inputting your desired regression equation in the form:"),
                                wellPanel(strong("response_name ~ explanatory_1_name + explanatory_2_name + ... + explanatory_k_name")),
                                p("Designate interaction terms using the * or : symbol between the two variable names. Using the asterisk will include both variables and their interaction (recommended), whereas the colon will only include the interaction. For example, an interaction between explanatory variable 1 and 2 can be specified as follows."),
                                wellPanel(strong("response_name ~ explanatory_1_name * explanatory_2_name + ... + explanatory_k_name")),
-                               wellPanel(strong("response_name ~ explanatory_1_name : explanatory_2_name + ... + explanatory_k_name")),
-                               p("Step 3: You can visualize the data and see a summary of the different variables in the "), 
-                               p("Step 4: You can check the assumptions provided in the 'Assumptions' tab. We recommend assessing assumptions visually using the provided graphical summary and confirming using the numerical summaries. The app will provide a histogram of the residuals, a randomized quantile residual plot, and a qq-plot with the dispersion ratio for the selected regression type. For non-zero inflated models, a zero-inflation assessment will also be provided. Warnings or notices will be provided based on the output within these charts."), 
-                               p("Step 5: You can check the effect of outlying, influential, or leverage points in the 'Outliers' tab. Many models exhibit some influential points and researchers should ensure that the results of their model hold when using a robust regression model."), #NOTE: May need to change this depending on what we want to show
-                               p("Step 6: A table will be provided detailing the results of a linear model test or a Vuong test, depending on the models being compared."),
-                               p("Step 7: The resulting model and interpretation of key values can be found in the 'Interpretation' tab"),
-                               p("Step 8 (Optional): If your model has an interaction, the appropriate analyses will be reported in the 'Interaction' tab.")),
+                               wellPanel(strong("response_name ~ explanatory_1_name : explanatory_2_name + ... + explanatory_k_name")), #NOTE: Test if this notation still works.
+                               p("Step 4: You can visualize the data and see a summary of the different variables in the "), 
+                               p("Step 5: You can check the assumptions provided in the 'Assumptions' tab. We recommend assessing assumptions visually using the provided graphical summary and confirming using the numerical summaries. The app will provide a histogram of the residuals, a randomized quantile residual plot, and a qq-plot with the dispersion ratio for the selected regression type. For non-zero inflated models, a zero-inflation assessment will also be provided. Warnings or notices will be provided based on the output within these charts."), 
+                               p("Step 6: You can check the effect of outlying, influential, or leverage points in the 'Outliers' tab. Many models exhibit some influential points and researchers should ensure that the results of their model hold when using a robust regression model."), #NOTE: May need to change this depending on what we want to show
+                               p("Step 7: If necessary, repeat the above steps with an alternative model based on the recommendations provided in the 'Assumptions' tab."),
+                               p("Step 8: If necessary, clean the data of outliers or other influential points visualized in the 'Outliers' tab that can be removed."),
+                               p("Step 9: A table will be provided detailing the results of a linear model test or a Vuong test, depending on the models being compared."),
+                               p("Step 10: The resulting model and interpretation of key values can be found in the 'Interpretation' tab"),
+                               p("Step 11 (Optional): If your model has an interaction, the appropriate analyses will be reported in the 'Interaction' tab.")),
                       h3("Contact us", align="center"), 
                       tags$div(class = 'paragraph',align = "center", tags$hr(),
                                tags$p("Please contact us if you have any questions at ", align="center", 
@@ -142,7 +145,15 @@ ui <- tagList(
                                                     p("The researchers noted prior studies that assess the effects of age on the ability to forage, there was a notable gap in evaluating strength and skill as predictors of hunting ability."),
                                                     p("More specifically, the researchers hypothesize that proficiency in hunting is associated with learning prior to and after a hunter matures physically, while accounting for hunting duration."),
                                                     tags$hr(),
-                                                    wellPanel(strong("Kills ~ Age + I(Age)^2 + offset(log(Days)"))
+                                                    wellPanel(strong("Kills ~ Age + Days"))
+                                           ),
+                                           
+                                           tags$div(class = "paragraph", 
+                                                    p("Upon pressing 'Compute Model Output', several plots and tables will be created. Upon processing, the app will show the 'Assumptions' tab, which presents a table, a checklist, and two plots."),
+                                                    p("For the Poisson model, we can note a few issues. Starting with the table, we can see that our Age parameter does not appear to be statistically discernible, with a p-value of 0.116. Secondly, we appear to have excess zeroes in our RQR Plot. Lastly, according to our Dispersion Ration, our estimated variance is 3.7485, indicating that our observed variace is about 3.75 times more than the estimate."),
+                                                    tags$hr(),
+                                                    tags$img(src = "ache_poisson_asmp_table.png", height = "125px", width = "550px"),
+                                                    tags$img(src = "ache_poisson_asmp_graph.png", height = "367px", width = "525px")
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
@@ -157,7 +168,7 @@ ui <- tagList(
                                   tabPanel("Example 2",
                                            h1("Example 2", align = "center"),
                                            tags$div(class = "paragraph", tags$hr(),
-                                                    tags$img(src = "Shaw.png", height = "1200px", width = "1000px")
+                                                    tags$img(src = "Shaw.png", height = "250px", width = "125px")
    
                                           )
                                   )
