@@ -824,8 +824,7 @@ server <- (function(input, output, session){
       uncheckAllAssumptions()
       hideAllTabs()
       
-      #browser()
-      
+
       
       if(input$model_choice %in% c("Poisson", "Negative Binomial")){
         shinyjs::show("asmp_5A")
@@ -989,8 +988,7 @@ server <- (function(input, output, session){
             zi_formula    <- ~ 1
           }
           
-        # browser()
-          
+
           
           if (choice == "Zero-Inflated Poisson"){
             # For some reason doesnt work with some interaction maybe due to sensitivity in poisson need to set up a try catch
@@ -2236,7 +2234,6 @@ prepare_anova <- metaReactive2({
   model <- globalVars$model
   type <-  globalVars$model_choice
   
- # browser()
   if (type == "Zero-Inflated Poisson" || type == "Zero Inflated Negative Binomial"){
     
     coef.table <- data.frame(summary(model)$coefficients$cond)
@@ -2463,7 +2460,7 @@ prepare_anova_interp <- function(){
 # ANOVA Comparison Tech Not Called Yet
 #############################################################################################
 prepare_anova_fctcomp <- metaReactive2({
-  
+
   req(globalVars$model)
   dat <- globalVars$dataset
   model <- globalVars$model
@@ -2475,24 +2472,26 @@ prepare_anova_fctcomp <- metaReactive2({
     anova_fctcomp.table <- NULL
     
     for(fctvar in fct.vars){
-      emm.obj <- emmeans(model, specs=fctvar)
-      emm.test <-pairs(emm.obj)
+      emm.obj <- emmeans(model, specs = fctvar, regrid = "response")
+      emm.test <- pairs(emm.obj, reverse = TRUE)
       emm.ci <- confint(emm.test)
-      
       emm.df <- data.frame(emm.test)
-      emm.df$Variable <- rep(fctvar, nrow(emm.df))
-      emm.df$lower.CI <- emm.ci$lower.CL
-      emm.df$upper.CI <- emm.ci$upper.CL
-      emm.df$CohensD <- abs(data.frame(eff_size(emm.obj, sigma(model), df.residual(model)))$effect.size)
       
-      anova_fctcomp.table<- rbind(anova_fctcomp.table, emm.df)
-    }
+      eff_col <- if("ratio" %in% names(emm.df)) "ratio" else "estimate"
+      
+      emm.df$Variable <- rep(fctvar, nrow(emm.df))
+      emm.df$Lower.CI <- emm.ci[[grep("LCL", names(emm.ci))]]
+      emm.df$Upper.CI <- emm.ci[[grep("UCL", names(emm.ci))]]
+      emm.df$EffectSize <- emm.df[[eff_col]]
+      anova_fctcomp.table <- rbind(anova_fctcomp.table, emm.df)   
+      }
     
     # Return the table with clean labels
     anova_fctcomp.table %>%
-      dplyr::select(Variable, everything()) %>% 
+      dplyr::select(Variable, contrast, everything()) %>%
       set_rownames(NULL) %>%
-      set_colnames(c("Variable", "Contrast", "Estimate", "SE", "df", "t ratio", "p-value", "Lower CI", "Upper CI", "Cohen's d"))
+      set_colnames(c("Variable", "Contrast", "Ratio (IRR)", "SE", "df", 
+                     "z", "p-value", "Lower CI", "Upper CI", "Effect Size (Ratio)"))
   })
 }, inline=TRUE)
 
@@ -2554,22 +2553,23 @@ output$anova_fctcompinterp <- renderUI({
   globalVars$prepare_anova_fctcompinterp
 })
 
-prepare_anova_fctcompinterp <- function(){
-  
+prepare_anova_fctcompinterp <- function(){ # PROLLY ISSUES
+  #browser()
+
   anova_fctcomp.table <- globalVars$anova_fctcomp %>%
-    mutate(d.text=  case_when(`Cohen's d`<0.20            ~ "minuscule and perhaps negligible.",
-                              `Cohen's d`>=0.20 & `Cohen's d`<0.50  ~ "small.",
-                              `Cohen's d`>=0.50 & `Cohen's d`<0.80  ~ "moderate.",
-                              `Cohen's d`>=0.80           ~ "large."))
+    mutate(d.text=  case_when(`Effect Size (Ratio)`<0.20            ~ "minuscule and perhaps negligible.",
+                              `Effect Size (Ratio)`>=0.20 & `Effect Size (Ratio)`<0.50  ~ "small.",
+                              `Effect Size (Ratio)`>=0.50 & `Effect Size (Ratio)`<0.80  ~ "moderate.",
+                              `Effect Size (Ratio)`>=0.80           ~ "large."))
   alpha <- input$alpha
   
   anova.interp <- NULL
   for(i in 1:(nrow(anova_fctcomp.table))){
     anova.interp <- (paste(anova.interp,"\U2022 The contrast of (", anova_fctcomp.table$Contrast[i], ") is ", ifelse(anova_fctcomp.table$`p-value`[i]<alpha, "significant ", "not significant "),
-                           "(t = ",  round(anova_fctcomp.table$`t ratio`[i],2),
+                           "(z = ",  round(anova_fctcomp.table$z[i],2),
                            ", p-value ",  ifelse(anova_fctcomp.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova_fctcomp.table$`p-value`[i],4), sep="")), 
                            ", 95% CI: ", round(anova_fctcomp.table$`Lower CI`[i],4), ",", round(anova_fctcomp.table$`Upper CI`[i], 4), ").",
-                           " The effect size is ", round(anova_fctcomp.table[["Cohen's d"]][i], 3), ", which indicates that the effect is ", anova_fctcomp.table$d.text[i], "<br/>",
+                           " The effect size is ", round(anova_fctcomp.table[["Effect Size (Ratio)"]][i], 3), ", which indicates that the effect is ", anova_fctcomp.table$d.text[i], "<br/>",
                            sep=""))
   }
   anova.interp<-paste(anova.interp, "<br/><strong>Note:</strong> This approach contrasts the estimated marginal means with a Tukey adjustment. These values are calculated at the 'average' of the other variables in the model.",
