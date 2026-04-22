@@ -150,14 +150,16 @@ ui <- tagList(
                                            
                                            tags$div(class = "paragraph", 
                                                     p("Upon pressing 'Compute Model Output', several plots and tables will be created. Upon processing, the app will show the 'Assumptions' tab, which presents a table, a checklist, and two plots."),
-                                                    p("For the Poisson model, we can note a few issues. Starting with the table, we can see that our Age parameter does not appear to be statistically discernible, with a p-value of 0.116. Secondly, we appear to have excess zeroes in our RQR Plot. Lastly, according to our Dispersion Ration, our estimated variance is 3.7485, indicating that our observed variace is about 3.75 times more than the estimate."),
+                                                    p("For the Poisson model, we can note a few issues. Starting with the table, our Age parameter does not appear to be statistically discernible, with a p-value of 0.116. Secondly, the data appears to have excess zeroes in our RQR Plot. Lastly, according to the Dispersion Ratio of 3.7485, the observed variace is about 3.75 times more than the estimate."),
                                                     tags$hr(),
-                                                    tags$img(src = "ache_poisson_asmp_table.png", height = "125px", width = "550px"),
-                                                    tags$img(src = "ache_poisson_asmp_graph.png", height = "367px", width = "525px")
+                                                    tags$img(src = "/images/ache_poisson_asmp_table.png", height = "125px", width = "550px"),
+                                                    tags$img(src = "/images/ache_poisson_asmp_graph.png", height = "367px", width = "525px")
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
-                                                    p("While the data is somewhat limited in size, it can be observed via Estimated Marginal Means that the predicted age at which hunters are at their peak is around age 52."),
+                                                    p("Furthermore, by navigating to the outliers tab, the graphs show that there are several points that may be influencing the regression overall."),
+                                                    tags$hr(),
+                                                    tags$img(src = "/images/ache_poisson_outliers_graph.png", height = "728px", width = "658px"),
                                                     p("However, to see if we can better fit the model, we can also fit a quasi-poisson model."),
                                                     tags$hr()
                                            ),
@@ -252,7 +254,7 @@ ui <- tagList(
                                                        fluidRow(
                                                          
                                                          column(4, style = "background-color:#ecf0f1;", tags$hr(), br(),
-                                                                h4("Make sure that you satisfy all linear regression assumptions:"), br(),
+                                                                h4("Make sure that you satisfy all regression assumptions:"), br(),
                                                                 # Assumption 1
                                                                 checkboxInput("asmp_1", HTML("The sample(s) is representative, and observations are independent."), FALSE),
                                                                 hidden(div(id='asmp_1note', htmlOutput('asmp_1'))),
