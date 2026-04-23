@@ -160,17 +160,39 @@ ui <- tagList(
                                                     p("Furthermore, by navigating to the outliers tab, the graphs show that there are several points that may be influencing the regression overall."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_poisson_outliers_graph.png", height = "728px", width = "658px"),
-                                                    p("However, to see if we can better fit the model, we can also fit a quasi-poisson model."),
-                                                    tags$hr()
+                                                    p("Based on the earlier assumptions, it is a good idea to fit a Zero Inflated model instead. For the purposes of this example, the selected model will be changed to a 'Zero-Inflated Poisson' model.")
                                            ),
                                            # HTML('<center><img src="ex1-datasummary.png"></center>'),
+                                           
+                                           tags$div(class = "paragraph", tags$hr(),
+                                                    p("First, the 'Zero-Inflated Poisson' model is selected from the dropdown menu and the desired equation equation is inputted."),
+                                                    tags$hr(),
+                                                    wellPanel(strong("Kills ~ Age + Days")),
+                                                    tags$hr(),
+                                                    p("Then, the model is recomputed and the assumptions are re-evaluated when the 'compute model output' button is pressed. The resulting table and graphs slightly different than that of the Poisson model, as shown below."),
+                                                    tags$hr(),
+                                           ),
+                                           
+                                           tags$div(class = "paragraph",
+                                                    tags$img(src = "/images/ache_zip_asmp_table.png", height = "300px", width = "660px"),
+                                                    p("In the zero-inflated poisson model, there is now a second intercept value that serves as the logistic regression. This helps us account for the 'zero inflation', for lack of a better term. However, we can see that Age does not seem to be an important parameter."),
+                                                    tags$hr(),
+                                                    tags$img(src = "/images/ache_zip_asmp_graph.png", height = "600px", width = "700px"),
+                                                    p(""),
+                                                    tags$hr(),
+                                                    tags$img(src = "/images/ache_zip_anova_output.png", height = "300px", width = "570px"),
+                                                    p(""),
+                                                    tags$hr()
+                                          )
+                                           
                                            
                                            
                                   ),
                                   tabPanel("Example 2",
                                            h1("Example 2", align = "center"),
                                            tags$div(class = "paragraph", tags$hr(),
-                                                    tags$img(src = "Shaw.png", height = "250px", width = "125px")
+                                                    tags$img(src = "Shaw.png", height = "250px", width = "125px"),
+                                                    tags$img(src = "/images/knight.png", height = "498px", width = "481px")
    
                                           )
                                   )
