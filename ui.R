@@ -12,6 +12,7 @@ library(shinycssloaders)
 library(shinyAce)
 library(shinyBS)
 library(DT)
+
 ##########################################
 # Data
 ##########################################
@@ -34,6 +35,7 @@ library(gtools)      #pvales for cormat
 #library(Hmisc)      #correlations and tests (still here, not loaded due to overriding summarize)
 library(lmtest)      #constant error variance
 library(margins)     #for marginal effects
+library(marginaleffects)
 library(multcomp)    #glht
 library(interactions)#for johnson neyman
 library(ggeffects)   #for marginal effects plots
@@ -418,6 +420,25 @@ ui <- tagList(
                                                    
                                               
                                                        
+                                             )
+                                    ),
+                                    tabPanel("Interpretation", value="interpretation",
+                                             fluidPage(h1("Count Model"), 
+                                                       fluidRow(column(12, actionButton("code_modsum", "R code", icon("code")), downloadButton('downloadmodsumLatex',label="LaTeX"))),br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(),
+                                                       h1("Interpretation"),
+                                                       htmlOutput("modelinterp"),
+                                                       tags$head(tags$style("#clickGene{color:red; font-size:12px; font-style:italic;}")),
+                                                       br(),
+                                                       tags$hr(),
+                                                       hidden(div(id='marginaleffectsdiv',
+                                                                  h1("Marginal Effects"), 
+                                                                  fluidRow(column(12, actionButton("code_margins", "R code", icon("code")), downloadButton('downloadmarginsLatex',label="LaTeX"))),br(),
+                                                                  fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("marginsTab")))),br(),
+                                                                  h1("Interpretation"),
+                                                                  htmlOutput("marginsinterp"),br(),
+                                                                  tags$hr()
+                                                       ))
                                              )
                                     )
                                     

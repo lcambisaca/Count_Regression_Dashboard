@@ -9,6 +9,8 @@ server <- (function(input, output, session){
   globalVars$dataset <- NULL
   globalVars$dataset.original <- NULL
   globalVars$fcts <- c()                 # Tracking Categorical Variables
+  globalVars$transform.type <- "none"
+  
   globalVars$interactions = c()
   
   
@@ -957,10 +959,6 @@ server <- (function(input, output, session){
     ########################################
     if(globalVars$changed.input){
       run <- checkEquationValidity()
-      
-
-
-      
       if(run){
         # Try to fit model
         model <- tryCatch({
@@ -1123,16 +1121,21 @@ server <- (function(input, output, session){
         
         globalVars$model <- model
         globalVars$modelsummary <- prepare_model_summary() 
+        globalVars$prepare_model_interp <- prepare_model_interp()
         
-        
-        
-       # globalVars$prepare_model_interp <- prepare_model_interp()
         globalVars$anova <- prepare_anova()
         globalVars$prepare_anova_interp <- prepare_anova_interp()
         
+        if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
+          all_vars <- all.vars(formula(model))
+          fct.vars <- all_vars[sapply(dat[all_vars], is.factor)]
+        }
+        else{
+          fct.vars <- names(which(attr(model$terms, "dataClasses")=="factor"))
+        }
         ### Show factor outputs, if necessary
-        fct.vars <- names(which(attr(model$terms, "dataClasses")=="factor"))
         if(length(fct.vars)>=1){
+          
           globalVars$anova_fctcomp <- prepare_anova_fctcomp()
           globalVars$make_anovafctcomp_plot <- make_anovafctcomp_plot()
           globalVars$make_anovafctcomp_num <- make_anovafctcomp_num()
@@ -1143,38 +1146,98 @@ server <- (function(input, output, session){
         }
         
 
-        globalVars$make_ggpairs_plot <- make_ggpairs_plot()
-        globalVars$make_ggpairs_summary <- make_ggpairs_summary()
+      #  globalVars$make_ggpairs_plot <- make_ggpairs_plot()
+     #   globalVars$make_ggpairs_summary <- make_ggpairs_summary()
         
 
-        globalVars$RQRPlot <- tryCatch({ # (NOTE PLOT) 2 
-          RQRPlot()
+        globalVars$RQRPlot <- tryCatch({ # make_assumptions_plot
+   #       RQRPlot()
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the RQR Plot.", type = "error")
           NULL
         })
         
         globalVars$Pearson_Residual <- tryCatch({
-          Pearson_Residual()
+       #   Pearson_Residual()
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the Pearson Plot.", type = "error")
           NULL
         })
         
         globalVars$ZeroInflated <- tryCatch({ # HAve to set up for ZIP and Tweezer whatever doesnt use it
-          ZeroInflated()
+      #    ZeroInflated()
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the ZeroInflated Plot.", type = "error")
           NULL
         })
         
-        globalVars$make_check_plot <- make_check_plot() #Checks Outliers crashing here
+    #    globalVars$make_check_plot <- make_check_plot() #Checks Outliers crashing here
         globalVars$make_anova_num <- make_anova_num()
         globalVars$make_model_summary <- make_model_summary()
 
         
         showAllTabs()
-        updateTabsetPanel(session, "workPanel", selected = "assumptions")
+        updateTabsetPanel(session, "workPanel", selected = "summary")
+        
+        ### Show interaction outputs, if necessary
+        if((grepl("[*]", globalVars$equation))){
+          # for any model with an interaction
+          shinyjs::show("marginaleffectsdiv")
+          
+         # browser()
+          globalVars$modelmargins <- prepare_model_margins()
+          globalVars$make_margins_summary <- make_margins_summary()
+          globalVars$prepare_margins_interp <- prepare_margins_interp()
+          
+          # Extract Regression Terms
+          terms <- attr(terms(model), "term.labels")
+          
+          
+          # What are the two-way interactions?
+          possible.ints <- terms[str_count(string=terms, pattern=":")==1]
+          # What are the 3+-way interactions?
+          bigger.ints <- terms[str_count(string=terms, pattern=":") > 1]
+          
+          if(length(possible.ints)==0){
+            ints.to.select <- c("None")
+          } else if(length(bigger.ints)==0){
+            ints.to.select <- c(possible.ints)
+          }else{
+            ints.to.select <- c()
+            # For each two-way
+            for(int in possible.ints){
+              # get the variables in the two way interaction
+              curr.vars <- c(str_split(string=int, pattern=":", simplify = T))
+              # now, check if it is part of a higher-order interaction
+              include=TRUE
+              for(bigger.int in bigger.ints){
+                # get the variables in the bigger interaction
+                curr.big.vars <- c(str_split(string=bigger.int, pattern=":", simplify = T))  
+                # are all two-way interaction variables in the higher-order interaction?
+                if(all(curr.vars %in% curr.big.vars)){
+                  # if not, it stops at a two-way interaction and we can deal with it.
+                  include=FALSE
+                }
+              }
+              if(include){
+                ints.to.select <- c(ints.to.select, int)
+              }
+            }  
+          }
+          if(length(ints.to.select)>0){
+            globalVars$interactions = ints.to.select
+            showInteractionInput()
+            updateInteractionSelect()
+          }
+          else{
+            globalVars$interactions = ints.to.select
+            hideInteractionInput()
+          }
+        }else{# no interaction
+          shinyjs::hide("marginaleffectsdiv")
+          hideTab(inputId="workPanel", target="interaction")
+        }
+        
         
         # Now should ad interactions
         removeModal()
@@ -1217,8 +1280,6 @@ server <- (function(input, output, session){
         ci <- as.data.frame(confint(model))
         
         ci <- ci[, -ncol(ci)]
-        
-        
         
         ci.zero <- ci[grep("^zi\\.", rownames(ci)), ]
         rownames(ci.zero) <- gsub("^zi\\.", "", rownames(ci.zero))
@@ -1372,7 +1433,7 @@ server <- (function(input, output, session){
         mutate("Term" = rownames(.)) %>%  # make terms part of table
         relocate(Term) %>%                # put Term in first column
         set_rownames(NULL) %>%
-        set_colnames(c("Term", "Estimate", "SE", "t", "p-value", "Lower CI", "Upper CI"))
+        set_colnames(c("Term", "Estimate", "SE", "z", "p-value", "Lower CI", "Upper CI"))
       })
     }
   }, inline=TRUE)
@@ -1420,6 +1481,432 @@ server <- (function(input, output, session){
       base::print(xtable(globalVars$make_model_summary, digits = 4), file, type = "latex")
     }
   )
+  
+  
+  
+  
+  #############################################################################################
+  # Summary of model and effects
+  #############################################################################################
+  # Code to interpret model
+  output$modelinterp <- renderUI({
+    globalVars$prepare_model_interp
+  })
+  
+  
+  prepare_model_interp <- function(){
+    req(globalVars$model)
+    req(globalVars$modelsummary)
+    
+    dat <- globalVars$dataset
+    model <- globalVars$model
+    mod.sum <- summary(model)
+    mod.table <- globalVars$modelsummary
+    choice <- globalVars$model_choice
+    
+    alpha<-input$alpha
+    
+    # 1. Calculate the Global P-value (Likelihood Ratio Test)
+    
+    
+    if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
+      
+      mod_null <- update(model, . ~ 1)
+      
+      ll_full <- as.numeric(logLik(model))
+      ll_null <- as.numeric(logLik(mod_null))
+      LR_stat <- 2 * (ll_full - ll_null)
+      df_diff <- attr(logLik(model), "df") - attr(logLik(mod_null), "df")
+      p_val_global <- pchisq(LR_stat, df_diff, lower.tail = FALSE)
+      mcfadden_r2 <- 1 - (ll_full / ll_null)
+      
+      firstPart <- paste(
+        "\U2022 The model ",
+        ifelse(p_val_global < alpha, "significantly predicts ", "does not significantly predict "),
+        "the response (Chi-square = ", round(LR_stat, 4),
+        ", df = ", df_diff,
+        ", p-value ", ifelse(p_val_global < 0.0001, " < 0.0001", paste(" =", round(p_val_global, 4))),
+        ").<br/>",
+        
+        "\U2022 The McFadden's Pseudo R-squared is ", round(mcfadden_r2, 4),
+        ". This represents the proportion of total deviance explained by the predictors.<br/>",
+        
+        "\U2022 The Log-Likelihood is ", round(ll_full, 4),
+        ". This value measures how well the model supports the observed data.<br/>",
+        sep=""
+      )
+      
+    }
+    else {
+    ll_full <- as.numeric(logLik(model))
+    diff_deviance <- model$null.deviance - model$deviance
+    df_diff <- model$df.null - model$df.residual
+    p_val_global <- pchisq(diff_deviance, df_diff, lower.tail = FALSE)
+    mcfadden_r2 <- 1 - (model$deviance / model$null.deviance)
+    
+    firstPart <- paste(
+      "\U2022 The model ",
+      ifelse(p_val_global < alpha, "significantly predicts ", "does not significantly predict "),
+      "the response (Chi-square = ", round(diff_deviance, 4),
+      ", df = ", df_diff,
+      ", p-value ", ifelse(p_val_global < 0.0001, " < 0.0001", paste(" =", round(p_val_global, 4))),
+      ").<br/>",
+      
+      "\U2022 The McFadden's Pseudo R-squared is ", round(mcfadden_r2, 4),
+      ". This represents the proportion of total deviance explained by the predictors.<br/>",
+      
+      "\U2022 The Log-Likelihood is ", round(ll_full, 4),
+      ". This value measures how well the model supports the observed data.<br/>",
+      sep=""
+    )
+    
+    }
+    
+    ind <- which(grepl(pattern = "[:]", x = mod.table$Term))
+    secondPart<-""
+    
+    if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
+      
+      if(length(ind)==0){ # NO INTERACTION
+        numeric.vars <- setdiff(mod.table$Term[!grepl(pattern = " = ", x = mod.table$Term)], "(Intercept)")
+        
+        
+        for(i in 1:nrow(mod.table)){
+          curr.row <- mod.table$Term[i]
+          if(curr.row=="(Intercept)"){next} #skip intercept
+          effect.value <- mod.table$Estimate[i]
+          z.value <- round(mod.table$z[i], 4)
+          pval <- round(mod.table$`p-value`[i],4)
+          pval <- ifelse(pval<0.0001, " < 0.0001", paste(" =", round(pval, 4)))
+          sig.text <- ifelse(pval > input$alpha, 
+                             paste(". This effect did not reach statistical significance", " (z = ", round(mod.table$z[i], 4), " p", pval,").", sep=""),
+                             paste(" (z=", round(mod.table$z[i], 4), " p", pval,").", sep=""))
+          
+          if(curr.row %in% numeric.vars){ # numeric
+            if(endsWith(curr.row, ".scaled")){
+              unit <- "standard deviation"
+              unit2 <- " standard deviation"
+              curr.row <- sub("\\.scaled$", "", curr.row) #.scaled $ (only from end)
+            } else{
+              unit <- "unit"
+              unit2 <- ""
+            }
+            if (mod.table$`Model Part`[i] == "Count Model"){
+              adding.text <- paste("\U2022 COUNT SIDE AHHH For TOMM FIXX every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
+                                     "in ", sub("\\.scaled$", "", names(model$model)[1]), ", on average.", sig.text, "\n", sep="")
+            }
+            else{
+                adding.text <- paste("\U2022 ZERO SIDE TOM FIXXX SIDE AHHH For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
+                                     "in ", sub("\\.scaled$", "", names(model$model)[1]), ", on average.", sig.text, "\n", sep="")
+              
+            }
+            
+            secondPart <- paste(secondPart, adding.text, sep="<br/>")
+          }
+          else{ #factor
+            findequal <- str_locate(string=curr.row, pattern = " = ")
+            varname <- substr(curr.row, start = 1, stop = findequal[1]-1)
+            baselevel<-paste(varname, "=", levels(model$model[,varname])[1])
+            
+            adding.text <- paste("\U2022 We expect ", gsub("\\.scaled", "", names(model$model)[1]), " to be ", round(abs(effect.value),4), ifelse(effect.value<0, " lower ", " higher "), "when ",
+                                   curr.row, " compared to ", baselevel, ", on average", sig.text, "\n", sep="")
+           
+            secondPart <- paste(secondPart, adding.text, sep="<br/>")
+          }
+        }
+      }else{
+        for(i in ind){
+          secondPart <- (paste(secondPart, "\U2022 The interactive effect of ", gsub("\\.scaled", "", mod.table$Term[i]), " is ", ifelse(mod.table$`p-value`[i]<alpha, "significant ", "not significant "),
+                               "(", "\U03B2 = ", round(mod.table$Estimate[i],4),
+                               ", z = ",  round(mod.table$z[i],4),
+                               ", p-value ",  ifelse(mod.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(mod.table$`p-value`[i],4), sep="")), ").<br/>",
+                               sep=""))
+        }
+      }
+    }
+    
+    else{ # For other models
+      if(length(ind)==0){ # NO INTERACTION
+        numeric.vars <- setdiff(mod.table$Term[!grepl(pattern = " = ", x = mod.table$Term)], "(Intercept)")
+        
+        for(i in 1:nrow(mod.table)){
+          curr.row <- mod.table$Term[i]
+          if(curr.row=="(Intercept)"){next} #skip intercept
+          effect.value <- mod.table$Estimate[i]
+          z.value <- round(mod.table$z[i], 4)
+          pval <- round(mod.table$`p-value`[i],4)
+          pval <- ifelse(pval<0.0001, " < 0.0001", paste(" =", round(pval, 4)))
+          sig.text <- ifelse(pval > input$alpha, 
+                             paste(". This effect did not reach statistical significance", " (z = ", round(mod.table$z[i], 4), " p", pval,").", sep=""),
+                             paste(" (z=", round(mod.table$z[i], 4), " p", pval,").", sep=""))
+          
+          if(curr.row %in% numeric.vars){ # numeric
+            if(endsWith(curr.row, ".scaled")){
+              unit <- "standard deviation"
+              unit2 <- " standard deviation"
+              curr.row <- sub("\\.scaled$", "", curr.row) #.scaled $ (only from end)
+            } else{
+              unit <- "unit"
+              unit2 <- ""
+            }
+            
+            adding.text <- paste("\U2022 For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
+                                 "in ", sub("\\.scaled$", "", names(model$model)[1]), ", on average.", sig.text, "\n", sep="")
+            
+            secondPart <- paste(secondPart, adding.text, sep="<br/>")
+          }
+          else{ #factor
+            findequal <- str_locate(string=curr.row, pattern = " = ")
+            varname <- substr(curr.row, start = 1, stop = findequal[1]-1)
+            baselevel<-paste(varname, "=", levels(model$model[,varname])[1])
+            
+            adding.text <- paste("\U2022 We expect ", gsub("\\.scaled", "", names(model$model)[1]), " to be ", round(abs(effect.value),4), ifelse(effect.value<0, " lower ", " higher "), "when ",
+                                 curr.row, " compared to ", baselevel, ", on average", sig.text, "\n", sep="")
+            
+            secondPart <- paste(secondPart, adding.text, sep="<br/>")
+          }
+        }
+      }else{
+        for(i in ind){
+          secondPart <- (paste(secondPart, "\U2022 The interactive effect of ", gsub("\\.scaled", "", mod.table$Term[i]), " is ", ifelse(mod.table$`p-value`[i]<alpha, "significant ", "not significant "),
+                               "(", "\U03B2 = ", round(mod.table$Estimate[i],4),
+                               ", z = ",  round(mod.table$z[i],4),
+                               ", p-value ",  ifelse(mod.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(mod.table$`p-value`[i],4), sep="")), ").<br/>",
+                               sep=""))
+        }
+      }
+      
+    }
+    
+    
+    
+    
+    HTML(paste(firstPart, secondPart))
+    
+  }
+  
+  
+  #############################################################################################
+  # Coefficient/Marginal Effect Interpretations BOO
+  #############################################################################################
+  prepare_model_margins <- metaReactive2({
+    #browser()
+    req(globalVars$model)
+    dat <- globalVars$dataset
+    model <- globalVars$model
+    metaExpr({
+      "####################################"
+      "# Summarize Model"
+      "####################################"
+      m_frame <- model.frame(model)
+      m_effects <- avg_slopes(model)
+      margins.table <- as.data.frame(m_effects)
+      
+      "####################################"
+      "# Clean Up Labels for Printing"
+      "####################################"
+
+      marg.classes<-sapply(X = m_frame, FUN = class)[-1]
+      if(any(marg.classes=="factor")){
+        marg.classes<-marg.classes[which(marg.classes=="factor")]
+        for(vname in names(marg.classes)){
+          varname <- vname
+          indexes <- grepl(x=margins.table$term, pattern = vname)
+          levels <- str_split(margins.table$contrast[indexes], " - ")
+          clean_val <- sapply(levels, function(x) x[1])
+          margins.table$term[indexes] <- paste(vname, "=", clean_val)
+        }
+      }
+      margins.table <- margins.table %>%
+        set_rownames(NULL) %>%
+        set_colnames(c("Term", "Contrast","Average Marginal Effect", "SE", "z", "p-value", "s-value","Lower CI", "Upper CI"))
+      
+      margins.table <- margins.table[, !(colnames(margins.table) %in% "Contrast")]
+    })
+  }, inline=TRUE)
+  
+  
+  make_margins_summary <- metaReactive2({
+    
+    margins.table <- globalVars$modelmargins
+    metaExpr({
+      "####################################"
+      "# Print Table"
+      "####################################"
+      margins.table %>% 
+        mutate_if(is.numeric, round, 4) %>%
+        mutate(`p-value` = ifelse(`p-value` < 0.0001, "<0.0001", `p-value`))
+    })
+  }, inline=TRUE)
+  
+  ### Render Model Summary to UI
+  output$marginsTab <- DT::renderDataTable({
+    globalVars$make_margins_summary
+  },
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = 
+      list("copy", "print", list(
+        extend = "collection",
+        buttons = list(
+          list(extend="csv", filename="model-marginaleffects"),
+          list(extend="excel", filename="model-marginaleffects"),
+          list(extend="pdf", filename="model-marginaleffects")
+        ),
+        text = "Download",
+        filename = "model-marginaleffects"
+      ))
+  ), rownames = FALSE)
+  
+  # Download button for summary (LaTeX version)----
+  output$downloadmarginsLatex <- downloadHandler(
+    filename = function() {
+      paste("model-marginaleffects.tex", sep="")
+    },
+    content = function(file) {
+      base::print(xtable(globalVars$make_margins_summary, digits = 4), file, type = "latex")
+    }
+  )
+  
+  # R Code
+  # Display code for ci visualization plot ----
+  observeEvent(input$code_margins, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse) 
+        library(magrittr)
+        library(margins)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      prepare_transformed_data(),
+      prepare_scaled_data(),
+      fitmodel(),
+      prepare_model_margins(),
+      make_margins_summary()
+    )
+    
+    displayCodeModal(
+      code, 
+      title = "Regression Marginal Effects Table",
+      size = "l", 
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
+  # Code to interpret marginal effects
+  output$marginsinterp <- renderUI({
+    globalVars$prepare_margins_interp
+  })
+  
+  prepare_margins_interp <- function(){ # TOM figure this out porfavor
+    model <- globalVars$model
+    margins.table <- globalVars$modelmargins
+    
+    mod.classes<-sapply(X = model.frame(model), FUN = class)[-1]
+    mod.classes<-mod.classes[which(mod.classes=="numeric")]
+
+    
+    first.part <- ""
+    for(i in 1:nrow(margins.table)){
+      curr.row <- margins.table$Term[i]
+      effect.value <- margins.table$`Average Marginal Effect`[i]
+      z.value <- round(margins.table$z[i], 4)
+      p.value <- ifelse(margins.table$`p-value`[i]<0.0001, "<0.0001", round(margins.table$`p-value`[i], 4))
+      sig.text <- ifelse(p.value > input$alpha, " This effect did not reach statistical significance", "")
+      
+      if(curr.row %in% names(mod.classes)){ # numeric
+        if(endsWith(curr.row, ".scaled")){
+          unit <- "standard deviation"
+          unit2 <- " standard deviation"
+          curr.row <- sub("\\.scaled$", "", curr.row) #.scaled $ (only from end)
+        } else{
+          unit <- "unit"
+          unit2 <- ""
+        }
+        
+        adding.text <- paste("\U2022 For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
+                               "in ", sub("\\.scaled$", "", names(model$model)[1]), ", on average.", sig.text, " (z=", round(z.value, 4), " p=",  p.value,  ").", "\n", sep="")
+  
+        first.part <- paste(first.part, adding.text, sep="<br/>")
+      }
+      else{ #factor
+        findequal <- str_locate(string=curr.row, pattern = " = ")
+        varname <- substr(curr.row, start = 1, stop = findequal[1]-1)
+        baselevel<-paste(varname, "=", levels(model.frame(model)[,varname])[1])
+        
+      
+        adding.text <-paste("\U2022 We expect ", names(model.frame(model))[1], " to be ", round(abs(effect.value),4), ifelse(effect.value<0, " lower ", " higher "), "when ",
+                              curr.row, " compared to ", baselevel, ", on average.", sig.text, " (z=", round(z.value, 4), " p=",  p.value,  ").", "\n", sep="")
+        
+        first.part <- paste(first.part, adding.text, sep="<br/>")
+      }
+    }
+    
+    
+    if(any(grepl(x = model$call$formula, pattern = "*"))|any(grepl(x = model$call$formula, pattern = ":"))){
+      second.part <- paste("<br/><strong>Note:</strong> This model has interactions so these interpretations are based on marginal effects, which are partial 
+          derivatives of the regression equation with respect to each variable. These marginal effects are calculated as 
+          the average change across observations. Calculating marginal effects at representative prespecified values is 
+          supported in R, but not currently supported in this application.")
+    }
+    HTML(paste(first.part, second.part, sep="<br/>"))
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   
@@ -1750,6 +2237,110 @@ observeEvent(input$code_RQR, {
   displayCodeModal(
     code, 
     title = "Interaction Marginal Effects Plot",
+    size = "l", 
+    fontSize = 16,
+    clip=NULL
+  )
+})
+
+
+# Render table to UI  
+output$vifTab <- DT::renderDataTable({
+  globalVars$make_vif_num
+},
+extensions = 'Buttons',
+options = list(
+  dom = 'Bfrtip',
+  buttons = 
+    list("copy", "print", list(
+      extend = "collection",
+      buttons = list(
+        list(extend="csv", filename="model-vif"),
+        list(extend="excel", filename="model-vif"),
+        list(extend="pdf", filename="model-vif")
+      ),
+      text = "Download",
+      filename = "model-vif"
+    ))
+), rownames = FALSE)
+
+make_vif_num <- metaReactive2({
+  req(globalVars$model)
+  model<-globalVars$model
+  choice <- globalVars$model_choice
+  
+  if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
+    all_vars <- all.vars(formula(model))
+  }
+  else{
+    all_vars <- model$terms
+  }
+    
+  # Note come Back to set up VIF
+  if(length(attr(all_vars, "term.labels"))>=2){
+    shinyjs::show("vifdiv")
+    
+    model.vif <- vif(model)
+    
+    if(is.null(nrow(model.vif))){
+      metaExpr({
+        "####################################"
+        "# Compute VIF"
+        "####################################"
+        model.vif <- vif(model)
+        model.vif <- tibble(Terms = names(model.vif),
+                            VIF   = model.vif) %>%
+          mutate_if(is.numeric, round, 4)
+      })
+    }else{
+      metaExpr({
+        "####################################"
+        "# Compute GVIF"
+        "####################################"
+        model.vif <- vif(model)
+        model.vif <- tibble(Terms = rownames(model.vif),
+                            `Adjusted GVIF`   = model.vif[,3])%>%
+          mutate_if(is.numeric, round, 4)
+      }) 
+    }
+  }else{
+    shinyjs::hide("vifdiv")
+  }
+}, inline=TRUE)
+
+# Download button for summary (LaTeX version)----
+output$downloadvifLatex <- downloadHandler(
+  filename = function() {
+    paste("model-viftable.tex", sep="")
+  },
+  content = function(file) {
+    base::print(xtable(globalVars$make_vif_num, digits = 4), file, type = "latex")
+  }
+)
+
+# R Code
+observeEvent(input$code_vif, {
+  code <- expandChain(
+    "# Ensure to load your data as an object called dat.",
+    quote({
+      library(tidyverse) 
+      library(magrittr)
+      library(car)
+      library(effectsize)
+    }),
+    "####################################",
+    "# Load Data",
+    "####################################",
+    read_data(),
+    refactor_data(),
+    prepare_transformed_data(),
+    prepare_scaled_data(),
+    fitmodel(),
+    make_vif_num()
+  )
+  displayCodeModal(
+    code, 
+    title = "Regression VIF Table",
     size = "l", 
     fontSize = 16,
     clip=NULL
@@ -2235,14 +2826,10 @@ prepare_anova <- metaReactive2({
   type <-  globalVars$model_choice
   
   if (type == "Zero-Inflated Poisson" || type == "Zero Inflated Negative Binomial"){
-    
-    coef.table <- data.frame(summary(model)$coefficients$cond)
-    int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
-    anova_type <- if(nrow(int.table) > 0 && any(int.table[,4] < 0.05)) "III" else "II"    
-    
+    #Note ask cipolli if we care about interactions in zero side of model
     metaExpr({
       
-      coef.table <- data.frame(summary(model)$coefficients$cond)
+      coef.table <- data.frame(summary(model)$coefficients$cond) 
       int.table <- coef.table[grep(x=rownames(coef.table), pattern=":", fixed = T),]
       anova_type <- if(nrow(int.table) > 0 && any(int.table[,4] < 0.05)) "III" else "II"    
       
@@ -2277,8 +2864,6 @@ prepare_anova <- metaReactive2({
         relocate(Term, `Model Part`) %>%  
         set_rownames(NULL) %>%
         set_colnames(c("Term", "Model Part", "LR Chisq (Deviance)", "df", "p-value", "Partial McFadden R2"))
-      
-      
       
       anova.table <- rbind(mod.table_count,mod.table_zero)
       
@@ -2457,17 +3042,25 @@ prepare_anova_interp <- function(){
 }
 
 #############################################################################################
-# ANOVA Comparison Tech Not Called Yet
+# ANOVA Comparison
 #############################################################################################
 prepare_anova_fctcomp <- metaReactive2({
-
   req(globalVars$model)
   dat <- globalVars$dataset
   model <- globalVars$model
+  choice <- globalVars$model_choice
+  
+
   
   metaExpr({
-    # Determine the categorical predictors that need comparisons
-    fct.vars <- names(which(attr(model$terms, "dataClasses")=="factor"))
+    # Note ask cipolli if we care about the zero side of model to or leave it as it as is
+    if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
+      all_vars <- all.vars(formula(model))
+      fct.vars <- all_vars[sapply(dat[all_vars], is.factor)]
+    }
+    else{
+      fct.vars <- names(which(attr(model$terms, "dataClasses")=="factor"))
+    }
     # Compare the different levels
     anova_fctcomp.table <- NULL
     
@@ -2504,7 +3097,7 @@ make_anovafctcomp_plot <- metaReactive2({
       "####################################"
       "# Create Plot"
       "####################################"
-      ggplot(data=anova_fctcomp.table, aes(x=Estimate, y=Contrast))+
+      ggplot(data=anova_fctcomp.table, aes(x=`Ratio (IRR)`, y=Contrast))+
         geom_point()+
         geom_errorbar(aes(xmin=`Lower CI`, xmax=`Upper CI`), width=0.1) +
         xlab("Estimate")+
@@ -2554,7 +3147,6 @@ output$anova_fctcompinterp <- renderUI({
 })
 
 prepare_anova_fctcompinterp <- function(){ # PROLLY ISSUES
-  #browser()
 
   anova_fctcomp.table <- globalVars$anova_fctcomp %>%
     mutate(d.text=  case_when(`Effect Size (Ratio)`<0.20            ~ "minuscule and perhaps negligible.",
