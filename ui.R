@@ -462,12 +462,84 @@ ui <- tagList(
                                                                   tags$hr()
                                                        ))
                                              )
+                                    ),
+                                    tabPanel("Interaction", value="interaction",
+                                             fluidPage(tags$hr(),
+                                                       h1("Interaction Analysis"),
+                                                       h3("Visualization"),
+                                                       fluidRow(column(12, actionButton("code_ggemmeans", "R code", icon("code")))),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("ggemmeans_plot")))),
+                                                       fluidRow(
+                                                         column(width=2, textInput("ggemmeans_plot_height", "Enter Height", value=7)),
+                                                         column(width=2, textInput("ggemmeans_plot_width", "Enter Width", value=7)),
+                                                         column(width=2, selectInput("ggemmeans_plot_units", "Units", choices = c("in", "cm"))),
+                                                         column(width=2, selectInput("ggemmeans_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                         column(width=2, downloadButton('downloadggemmeansPlot'),style = "margin-top: 25px;"), #
+                                                         tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                       ),
+                                                       tags$hr(),
+                                                       
+                                                       h3("Estimated Marginal Means"),
+                                                       fluidRow(column(12, actionButton("code_interaction_emmeanstab", "R code", icon("code")), downloadButton('download_interaction_emmeansLatex',label="LaTeX"))),br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("interaction_emmeans_tab")))),
+                                                       h3("Interpretation"),
+                                                       htmlOutput("interaction_emmeans_interp"),br(),
+                                                       
+                                                       h3("Contrasts of Marginal Means"),
+                                                       fluidRow(column(12, actionButton("code_interaction_emmeans_contrast", "R code", icon("code")), downloadButton('download_interaction_emmeanscontrastLatex',label="LaTeX"))),br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("interaction_emmeanscontrast_tab")))), br(),
+                                                       h3("Interpretation"),
+                                                       htmlOutput("interaction_emmeanscontrast_interp"), 
+                                                       
+                                                       ##############################################################################
+                                                       # Should only be available for everything but factor/factor and numeric/factor with factor as the moderator
+                                                       ##############################################################################
+                                                       hidden(div(id='emtrendsdiv',
+                                                                  tags$hr(),
+                                                                  h3("Estimated Marginal Effects"),
+                                                                  fluidRow(column(12, actionButton("code_interaction_emtrendstab", "R code", icon("code")), downloadButton('download_interaction_emtrendsLatex',label="LaTeX"))),br(),
+                                                                  fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("interaction_emtrends_tab")))),
+                                                                  h3("Interpretation"),
+                                                                  htmlOutput("interaction_emtrends_interp"),br(),
+                                                       )),
+                                                       
+                                                       ##############################################################################
+                                                       # Should only be available for everything but factor/factor and numeric/factor with factor as the moderator
+                                                       ##############################################################################
+                                                       hidden(div(id='emtrendscontrastdiv',
+                                                                  tags$hr(),
+                                                                  h3("Contrast of Marginal Effects"),
+                                                                  fluidRow(column(12, actionButton("code_interaction_emtrendscontrasttab", "R code", icon("code")), downloadButton('download_interaction_emtrendscontrastLatex',label="LaTeX"))),br(),
+                                                                  fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("interaction_emtrendscontrast_tab")))),
+                                                                  h3("Interpretation"),
+                                                                  htmlOutput("interaction_emtrendscontrast_interp"),br(),
+                                                       )),
+                                                       
+                                                       ##############################################################################
+                                                       # Should only be available for numeric*numeric interactions
+                                                       ##############################################################################
+                                                       hidden(div(id='jndiv',
+                                                                  tags$hr(),
+                                                                  h3("Johnson Neyman"),
+                                                                  fluidRow(column(12, actionButton("code_jn", "R code", icon("code")))),
+                                                                  fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("jn_plot")))),
+                                                                  fluidRow(
+                                                                    column(width=2, textInput("jn_plot_height", "Enter Height", value=7)),
+                                                                    column(width=2, textInput("jn_plot_width", "Enter Width", value=7)),
+                                                                    column(width=2, selectInput("jn_plot_units", "Units", choices = c("in", "cm"))),
+                                                                    column(width=2, selectInput("jn_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                                    column(width=2, downloadButton('downloadjnPlot'),style = "margin-top: 25px;"), #
+                                                                    tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                                  ),
+                                                                  h3("Interpretation"),
+                                                                  htmlOutput("jn_int"),br()
+                                                       )),
+                                                       ##############################################################################
+                                                       tags$hr()
+                                             )
                                     )
                                     
-                                    
- 
-                                    
-                       )
+                          )
                         
                      )
                       

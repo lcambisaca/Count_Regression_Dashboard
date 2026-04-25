@@ -626,7 +626,6 @@ server <- (function(input, output, session){
   }
   
   
-  
   ############################################################################################
   # All models 
   ############################################################################################
@@ -724,7 +723,10 @@ server <- (function(input, output, session){
     }
     
   })
-  
+   
+#############################################################################
+  # Start of Pain   #AHHH
+  #########################################################################
   observeEvent(input$var_moderator,{
     req(globalVars$model)
     shinyjs::hide("interaction.error")
@@ -734,8 +736,9 @@ server <- (function(input, output, session){
       hideTab(inputId="workPanel", target="interaction")   
     }else{
       showModal(modalDialog("Things are happening in the background!", footer=NULL))
-      globalVars$emmeans <- prepare_interaction_emmeans()
-      globalVars$mod.emmeanscontrast <- prepare_interaction_emmeanscontrasts()
+      browser()
+      globalVars$emmeans <- prepare_interaction_emmeans() # Good
+      globalVars$mod.emmeanscontrast <- prepare_interaction_emmeanscontrasts() # Good
       globalVars$mod.emtrends <- prepare_interaction_emtrends()
       if(!is.null(globalVars$mod.emtrends)){
         globalVars$mod.emtrendcontrast <- prepare_interaction_emtcontrast()
@@ -749,7 +752,7 @@ server <- (function(input, output, session){
       globalVars$make_interaction_contrasts_tab <- make_interaction_contrasts_tab()
       globalVars$prepare_interaction_emmeanscontrast_interp <- prepare_interaction_emmeanscontrast_interp()
       globalVars$ggemmeansplot <- ggemmeansplot()
-      globalVars$jnplot <- jnplot()
+      globalVars$jnplot <- jnplot() # Here where it fails for ZIP TOm FIX
       globalVars$prepare_jn_int <- prepare_jn_int()
       removeModal()
       showTab(inputId="workPanel", target="interaction")
@@ -762,6 +765,1288 @@ server <- (function(input, output, session){
       globalVars$ggemmeansplot <- ggemmeansplot()
     }
   })
+  
+  
+  
+  
+  
+  #############################################################################################
+  # ggemmeans plot
+  #############################################################################################
+  # Code to create ggemmeanss plot
+  ggemmeansplot <- metaReactive2({
+    
+    req(globalVars$model)
+    model <- globalVars$model
+    
+    dat <- globalVars$dataset
+    
+    se.on = ifelse(input$interaction.error==TRUE, 0.40, 0)
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    
+    if(globalVars$transform.type == "none"){
+      y.label <- paste("Predicted ", names(model.frame(model))[1],sep="")
+    }else if(globalVars$transform.type == "log"){
+      y.label <- paste("Predicted log(", substring(names(model.frame(model))[1], first=17), ")", sep="")  
+    }else if(globalVars$transform.type == "lp1"){
+      y.label <- paste("Predicted log(", substring(names(model.frame(model))[1], first=17), " + 1)", sep="")
+    }else if(globalVars$transform.type == "ihs"){
+      y.label <- paste("Predicted IHS(", substring(names(model.frame(model))[1], first=17), ")", sep="")
+    }
+    
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      shinyjs::show("emtrendsdiv")
+      shinyjs::show("emtrendscontrastdiv")
+      shinyjs::show("jndiv")
+      shinyjs::show("interaction.error")
+      metaExpr({
+        "####################################"
+        "# Effects of Interest"
+        "####################################"
+        m.mod<-mean(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        s.mod<-sd(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        meffectsfor <- c(..(int.var), paste(..(moderator), "[",round(m.mod-s.mod,2), ",", round(m.mod+s.mod,2),"]", sep=""))
+        mod.emmeans<-ggemmeans(model = model, terms = meffectsfor , interval = "confidence") # checkbox
+        mod.emmeans <- ggemmeans(model = model, terms = meffectsfor, interval = "confidence")
+        ggdat <- data.frame(mod.emmeans) %>%
+          mutate(group = case_when(group == round(m.mod - s.mod, 2) ~ paste("Low (Mean - 1SD = ", round(m.mod - s.mod, 2), ")", sep = ""),
+                                   TRUE                             ~ paste("High (Mean + 1SD = ", round(m.mod + s.mod, 2), ")", sep = "")))
+        "####################################"
+        "# Plot"
+        "####################################"
+        ggplot(data = ggdat, aes(x = x, y = predicted, color = group, fill = group)) +
+          geom_line() +
+          geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+                      linetype="dotted",
+                      alpha = ifelse(..(se.on), 0.4, 0)) +
+          xlab(..(int.var))+
+          ylab(..(y.label))+
+          scale_color_brewer(..(moderator), palette = "Pastel1")+
+          scale_fill_brewer(..(moderator), palette = "Pastel1")+
+          theme_bw()
+      })
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      shinyjs::hide("emtrendsdiv")
+      shinyjs::hide("emtrendscontrastdiv")
+      shinyjs::hide("jndiv")
+      shinyjs::hide("interaction.error")
+      metaExpr({
+        "####################################"
+        "# Effects of Interest"
+        "####################################"
+        #mod.emmeans<-ggemmeans(model = model, terms = c(..(int.var), ..(moderator)) , interval = "prediction") # checkbox
+        mod.emmeans<-ggemmeans(model = model, terms = c(..(int.var), ..(moderator)) , interval = "confidence") # checkbox
+        
+        "####################################"
+        "# Plot"
+        "####################################"
+        ggdat <- data.frame(mod.emmeans)
+        ggplot(data=ggdat, aes(x=x, y=predicted, color=group))+
+          geom_point(position = position_dodge(.25))+
+          geom_errorbar(aes(ymin=conf.low, ymax=conf.high), position = position_dodge(.25), width=0.1)+
+          xlab(..(int.var))+
+          ylab(..(y.label))+
+          scale_color_brewer(..(moderator), palette = "Pastel1")+
+          scale_fill_brewer(..(moderator), palette = "Pastel1")+
+          theme_bw()
+      })
+    }else{ #One of Each
+      if(int.vars.classes[moderator]=="factor"){
+        shinyjs::show("emtrendsdiv")
+        shinyjs::show("emtrendscontrastdiv")
+        shinyjs::hide("jndiv")
+        shinyjs::show("interaction.error")
+        metaExpr({
+          "####################################"
+          "# Effects of Interest"
+          "####################################"
+          #mod.emmeans<-ggemmeans(model = model, terms = meffectsfor , interval = "prediction") # to select
+          mod.emmeans<-ggemmeans(model = model, terms = c(..(int.var),..(moderator)) , interval = "confidence") # checkbox
+          
+          "####################################"
+          "# Plot"
+          "####################################"
+          ggdat <- data.frame(mod.emmeans)
+          ggplot(data = ggdat, aes(x = x, y = predicted, color = group, fill = group)) +
+            geom_line() +
+            geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+                        linetype="dotted",
+                        alpha = ifelse(..(se.on), 0.4, 0)) +
+            xlab(..(int.var))+
+            ylab(..(y.label))+
+            scale_color_brewer(..(moderator), palette = "Pastel1")+
+            scale_fill_brewer(..(moderator), palette = "Pastel1")+
+            theme_bw()
+        })
+      }else{
+        shinyjs::hide("emtrendsdiv")
+        shinyjs::hide("emtrendscontrastdiv")
+        shinyjs::hide("jndiv")
+        shinyjs::hide("interaction.error")
+        metaExpr({
+          "####################################"
+          "# Effects of Interest"
+          "####################################"
+          m.mod<-mean(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+          s.mod<-sd(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+          
+          meffectsfor <- c(..(int.var), paste(..(moderator), "[",round(m.mod-s.mod,2), ",", round(m.mod+s.mod,2),"]", sep=""))
+          #mod.emmeans<-ggemmeans(model = model, terms = meffectsfor , interval = "prediction") # to select
+          mod.emmeans<-ggemmeans(model = model, terms = meffectsfor , interval = "confidence") # checkbox
+          
+          mod.emmeans <- mod.emmeans %>% 
+            mutate(group=ifelse(group == round(m.mod-s.mod,2), paste("Low (Mean - 1SD = ", round(m.mod-s.mod,2), ")", sep=""),
+                                paste("High (Mean + 1SD = ", round(m.mod+s.mod,2), ")", sep="")))
+          "####################################"
+          "# Plot"
+          "####################################"
+          ggdat <- data.frame(mod.emmeans)
+          ggplot(data=ggdat, aes(x=x, y=predicted, color=group))+
+            geom_point(position = position_dodge(.25))+
+            geom_errorbar(aes(ymin=conf.low, ymax=conf.high), position = position_dodge(.25), width=0.1)+
+            xlab(..(int.var))+
+            ylab(..(y.label))+
+            scale_color_brewer(..(moderator), palette = "Pastel1")+
+            scale_fill_brewer(..(moderator), palette = "Pastel1")+
+            theme_bw()
+        })
+      }
+    }
+  },inline=TRUE)
+  
+  # Render plot to UI
+  output$ggemmeans_plot <- renderPlot({
+    globalVars$ggemmeansplot
+  })
+  
+  # Download button for plots (call reactive function here to get plot object) ----
+  output$downloadggemmeansPlot <- downloadHandler(
+    filename = function() { paste('ggemmeansplot.', input$ggemmeans_plot_format, sep='') },
+    content = function(file) {
+      ggsave(file, plot = globalVars$ggemmeansplot, device = input$ggemmeans_plot_format, 
+             height = as.numeric(input$ggemmeans_plot_height), width = as.numeric(input$ggemmeans_plot_width), 
+             units = input$ggemmeans_plot_units)
+    }
+  )
+  
+  
+  # Rcode 
+  # Display code for ci visualization plot ----
+  observeEvent(input$code_ggemmeans, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse) 
+        library(ggeffects)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      prepare_transformed_data(),
+      prepare_scaled_data(),
+      fitmodel(),
+      ggemmeansplot()
+    )
+    
+    displayCodeModal(
+      code, 
+      title = "Interaction Marginal Effects Plot",
+      size = "l", 
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
+  #############################################################################################
+  # emmeans table
+  #############################################################################################
+  prepare_interaction_emmeans <- metaReactive2({
+    req(input$var_inter)
+    req(input$var_moderator)
+    
+    model<-globalVars$model
+    
+    dat <- globalVars$dataset
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      metaExpr({
+        "####################################"
+        "# Calculate Marginal Effects"
+        "####################################"
+        m.mod<-mean(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        s.mod<-sd(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        m.var<-mean(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+        s.var<-sd(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+        modvarat<-list(c(round(m.mod-s.mod,2), round(m.mod+s.mod,2)),
+                       c(round(m.var-s.var,2), round(m.var+s.var,2)))
+        names(modvarat)<-c((..(moderator)), ..(int.var))
+        
+        mod.emmeans<-data.frame(emmeans(object = model, spec=c(..(int.var),..(moderator)), var=..(int.var), at=modvarat, type="response")) 
+        
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        mod.emmeans[,..(int.var)]<- ifelse(mod.emmeans[,..(int.var)]==round(m.var-s.var,2),     paste("Low (Mean - 1SD = ", round(m.var-s.var,2), ")", sep=""),paste("High (Mean + 1SD = ", round(m.var+s.var,2), ")", sep=""))
+        mod.emmeans[,..(moderator)]<- ifelse(mod.emmeans[,..(moderator)]==round(m.mod-s.mod,2), paste("Low (Mean - 1SD = ", round(m.mod-s.mod,2), ")", sep=""),paste("High (Mean + 1SD = ", round(m.mod+s.mod,2), ")", sep=""))
+        
+        mod.emmeans <- mod.emmeans %>%
+          set_rownames(NULL) %>%
+          set_colnames(c(..(moderator),..(int.var), "Estimated Marginal Mean", "SE", "df", "Lower CI", "Upper CI"))
+      })
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      metaExpr({
+        "####################################"
+        "# Calculate Marginal Effects"
+        "####################################"
+        mod.emmeans<-data.frame(emmeans(object = model, spec=c(..(int.var),..(moderator)), var=..(int.var), type="response")) 
+        
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        mod.emmeans <- mod.emmeans %>%
+          set_rownames(NULL) %>%
+          set_colnames(c(..(moderator),..(int.var),"Estimated Marginal Mean", "SE", "df", "Lower CI", "Upper CI"))
+      })
+    }else{ 
+      if(int.vars.classes[moderator]=="factor"){
+        metaExpr({
+          "####################################"
+          "# Calculate Marginal Effects"
+          "####################################"  
+          m.var<-mean(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+          s.var<-sd(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+          modvarat<-list(c(round(m.var-s.var,2), round(m.var+s.var,2)))
+          names(modvarat)<-..(int.var)
+          
+          mod.emmeans<-data.frame(emmeans(model, specs = c(moderator, int.var), var = int.var, at=modvarat, type="response")) 
+          
+          
+          "####################################"
+          "# Clean Up Labels for Printing"
+          "####################################"
+          mod.emmeans[,..(int.var)]<- ifelse(mod.emmeans[,..(int.var)]==round(m.var-s.var,2),paste("Low (Mean - 1SD = ", round(m.var-s.var,2), ")", sep=""),paste("High (Mean + 1SD = ", round(m.var+s.var,2), ")", sep=""))
+          
+          mod.emmeans <- mod.emmeans %>%
+            set_rownames(NULL) %>%
+            set_colnames(c(..(moderator),..(int.var),"Estimated Marginal Mean", "SE", "df", "Lower CI", "Upper CI"))
+        })
+      }else{
+        model<-globalVars$model
+        metaExpr({
+          "####################################"
+          "# Calculate Marginal Effects"
+          "####################################"
+          m.mod<-mean(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+          s.mod<-sd(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+          
+          modvarat<-list(c(round(m.mod-s.mod,2), round(m.mod+s.mod,2)))
+          names(modvarat)<-c(..(moderator))
+          
+          mod.emmeans<-data.frame(emmeans(model, specs = c(..(moderator),..(int.var)), var=..(moderator), at=modvarat, type="response")) 
+          
+          
+          "####################################"
+          "# Clean Up Labels for Printing"
+          "####################################"
+          mod.emmeans[,..(moderator)]<- ifelse(mod.emmeans[,..(moderator)]==round(m.mod-s.mod,2),paste("Low (Mean - 1SD = ", round(m.mod-s.mod,2), ")", sep=""),paste("High (Mean + 1SD = ", round(m.mod+s.mod,2), ")", sep=""))
+          
+          mod.emmeans <- mod.emmeans %>%
+            set_rownames(NULL) %>%
+            set_colnames(c(..(moderator),..(int.var),"Estimated Marginal Mean", "SE", "df", "Lower CI", "Upper CI"))
+        })
+      }
+    }
+  }, inline=TRUE)
+  
+  make_interaction_emmeans_tab <- metaReactive2({
+    mod.emmeans <- globalVars$emmeans
+    metaExpr({
+      mod.emmeans %>%
+        mutate_if(is.numeric, round, 4) 
+    })
+    
+  }, inline=TRUE)
+  
+  ### Model Summary
+  output$interaction_emmeans_tab <- DT::renderDataTable({
+    globalVars$make_interaction_emmeans_tab
+  },
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = 
+      list("copy", "print", list(
+        extend = "collection",
+        buttons = list(
+          list(extend="csv", filename="model-interaction-marginalmeans"),
+          list(extend="excel", filename="model-interaction-marginalmeans"),
+          list(extend="pdf", filename="model-interaction-marginalmeans")
+        ),
+        text = "Download",
+        filename = "model-interaction-marginalmeans"
+      ))
+  ), rownames = FALSE)
+  
+  # Download button for summary (LaTeX version)----
+  output$download_interaction_emmeansLatex <- downloadHandler(
+    filename = function() {
+      "model-interaction-marginalmeans.tex"
+    },
+    content = function(file) {
+      base::print(xtable(globalVars$make_interaction_emmeans_tab, digits = 4), file, type = "latex")
+    }
+  )
+  
+  # R Code
+  observeEvent(input$code_interaction_emmeanstab, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse)
+        library(magrittr)
+        library(emmeans)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      prepare_transformed_data(),
+      prepare_scaled_data(),
+      fitmodel(),
+      prepare_interaction_emmeans(),
+      make_interaction_emmeans_tab()
+    )
+    
+    displayCodeModal(
+      code,
+      title = "Interaction Estimated Marginal Means Table",
+      size = "l",
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
+  #Interpretation
+  output$interaction_emmeans_interp <- renderUI({
+    globalVars$prepare_interaction_emmeans_interp
+  })
+  
+  prepare_interaction_emmeans_interp <- function(){
+    mod.emmeans <- globalVars$emmeans %>%
+      mutate_if(is.numeric, round, 4) 
+    model<-globalVars$model
+    dat<-globalVars$dataset
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    
+    if(globalVars$transform.type == "none"){
+      response <- names(model.frame(model))[1]
+    }else if(globalVars$transform.type == "log"){
+      response <- paste("log(", substring(names(model.frame(model))[1], first=17), ")", sep="")  
+    }else if(globalVars$transform.type == "lp1"){
+      response <- paste("log(", substring(names(model.frame(model))[1], first=17), " + 1)", sep="")
+    }else if(globalVars$transform.type == "ihs"){
+      response <- paste("inverse hyperbolic sine transformed ", substring(names(model.frame(model))[1], first=17), sep="")
+    }
+    
+    
+    emmeans.text<-""
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      for(i in 1:nrow(mod.emmeans)){
+        emmeans.text <- paste(emmeans.text,"\U2022 The estimated marginal mean of ", sub("\\.scaled$", "", names(model.frame(model))[1]), " for ", sub("\\.scaled$", "", int.var), " = ", mod.emmeans[i,int.var] ," and ", sub("\\.scaled$", "", colnames(mod.emmeans[moderator])), " = " , as.character(mod.emmeans[i,moderator]), " is ", round(mod.emmeans[i,"Estimated Marginal Mean"],2),
+                              " (95% CI: ", round(mod.emmeans[i,"Lower CI"],2), ", ", round(mod.emmeans[i,"Upper CI"],2), "). <br/>",
+                              sep="")
+      }
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      for(i in 1:nrow(mod.emmeans)){
+        emmeans.text <- paste(emmeans.text,"\U2022 The estimated marginal mean of ", sub("\\.scaled$", "", response), " for ", sub("\\.scaled$", "", int.var), " = ", as.character(mod.emmeans[i,int.var]) ," and ", sub("\\.scaled$", "", colnames(mod.emmeans[moderator])), " = " , as.character(mod.emmeans[i,moderator]), " is ", round(mod.emmeans[i,"Estimated Marginal Mean"],2),
+                              " (95% CI: ", round(mod.emmeans[i,"Lower CI"],2), ", ", round(mod.emmeans[i,"Upper CI"],2), "). <br/>",
+                              sep="")
+      }
+    }else{
+      if(int.vars.classes[moderator]=="factor"){
+        for(i in 1:nrow(mod.emmeans)){
+          emmeans.text <- paste(emmeans.text, "\U2022 The estimated marginal mean of ", sub("\\.scaled$", "", response), " for ", sub("\\.scaled$", "", int.var), " = ", mod.emmeans[i,int.var] ," and ", sub("\\.scaled$", "", colnames(mod.emmeans[moderator])), " = " , as.character(mod.emmeans[i,moderator]), " is ", round(mod.emmeans[i,"Estimated Marginal Mean"],2),
+                                " (95% CI: ", round(mod.emmeans[i,"Lower CI"],2), ", ", round(mod.emmeans[i,"Upper CI"],2), "). <br/>",
+                                sep="")
+        }
+      }else{
+        for(i in 1:nrow(mod.emmeans)){
+          emmeans.text <- paste(emmeans.text,"\U2022 The estimated marginal mean of ", sub("\\.scaled$", "", response), " for ", sub("\\.scaled$", "", int.var), " = ", as.character(mod.emmeans[i,int.var]) ," and ", sub("\\.scaled$", "", colnames(mod.emmeans[moderator])), " = " , as.character(mod.emmeans[i,moderator]), " is ", round(mod.emmeans[i,"Estimated Marginal Mean"],2),
+                                " (95% CI: ", round(mod.emmeans[i,"Lower CI"],2), ", ", round(mod.emmeans[i,"Upper CI"],2), "). <br/>",
+                                sep="")
+        }
+      }
+    }
+    emmeans.text<-paste(emmeans.text, "<br/><strong>Note:</strong> This approach contrasts the estimated marginal means with a Tukey adjustment for multiple comparisons. These values are calculated at the 'average' of the other variables in the model.",
+                        "You may want to set the other variables to specific values, which is supported in R but not currently supported in this application.")
+    HTML(emmeans.text)
+  }
+  
+  #############################################################################################
+  # contrast table
+  #############################################################################################
+  prepare_interaction_emmeanscontrasts <- metaReactive2({
+    dat <- globalVars$dataset
+    model <- globalVars$model
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      metaExpr({
+        m.mod<-mean(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        s.mod<-sd(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        m.var<-mean(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+        s.var<-sd(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+        modvarat<-list(c(round(m.mod-s.mod,2), round(m.mod+s.mod,2)),
+                       c(round(m.var-s.var,2), round(m.var+s.var,2)))
+        names(modvarat)<-c((..(moderator)), ..(int.var))
+        
+        mod.emmeans<-emmeans(object = model, spec=c(..(int.var),..(moderator)), var=..(int.var), at=modvarat, type="response")
+        mod.emmeans <- add_grouping(mod.emmeans, "int.var", ..(int.var) , c(paste("(Low ", ..(int.var),")", sep=""), paste("(High ", ..(int.var),")", sep="")))
+        mod.emmeans <- add_grouping(mod.emmeans, "moderator", ..(moderator) , c(paste("(Low ", ..(moderator),")", sep=""), paste("(High ", ..(moderator),")", sep="")))
+        
+        mod.emmeanscontrast <-data.frame(pairs(emmeans(mod.emmeans, c("int.var","moderator"), type="response")))
+        mod.emmeanscontrastci<-data.frame(confint(pairs(mod.emmeans)))
+        mod.emmeanscontrast$asymp.LCL<-mod.emmeanscontrastci$asymp.LCL
+        mod.emmeanscontrast$asymp.UCL<-mod.emmeanscontrastci$asymp.UCL
+        
+        mod.emmeanscontrast$contrast <- gsub("\\.scaled", "", mod.emmeanscontrast$contrast)
+        
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        mod.emmeanscontrast <- mod.emmeanscontrast %>%
+          dplyr::select(-any_of("null"))%>%
+          set_rownames(NULL) %>%
+          set_colnames(c("Contrast", "Estimate", "SE", "df", "z ratio", "p-value", "Lower CI", "Upper CI"))
+      }) 
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      metaExpr({
+        "####################################"
+        "# Calculate Marginal Effects"
+        "####################################"
+        mod.emmeans<-emmeans(model, specs = c(..(int.var),..(moderator)), var=moderator, type="response")
+        mod.emmeanscontrast <-data.frame(pairs(mod.emmeans))
+        mod.emmeanscontrastci<-data.frame(confint(pairs(mod.emmeans)))
+        mod.emmeanscontrast$asymp.LCL<-mod.emmeanscontrastci$asymp.LCL
+        mod.emmeanscontrast$asymp.UCL<-mod.emmeanscontrastci$asymp.UCL
+        
+        mod.emmeanscontrast$contrast <- gsub("\\.scaled", "", mod.emmeanscontrast$contrast)
+        
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        mod.emmeanscontrast <- mod.emmeanscontrast %>%
+          dplyr::select(-any_of("null"))%>%
+          set_rownames(NULL) %>%
+          set_colnames(c("Contrast", "Estimate", "SE", "df", "z ratio", "p-value", "Lower CI", "Upper CI"))
+      })    
+    }else{ 
+      if(int.vars.classes[moderator]=="factor"){
+        metaExpr({
+          "####################################"
+          "# Calculate Marginal Effects"
+          "####################################"
+          m<-mean(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+          s<-sd(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+          modvarat<-list(c(round(m-s,2), round(m+s,2)))
+          names(modvarat)<-c(..(int.var))
+          
+          mod.emmeans <- emmeans(model, specs = c(..(moderator),..(int.var)), var=..(moderator), at=modvarat, type="response")
+          mod.emmeans <- add_grouping(mod.emmeans, "int.var", ..(int.var) ,  c(paste("(Low ",..(int.var),")", sep=""), paste("(High ",..(int.var),")", sep="")))
+          mod.emmeanscontrast <-data.frame(pairs(mod.emmeans))
+          mod.emmeanscontrastci<-data.frame(confint(pairs(mod.emmeans)))
+          mod.emmeanscontrast$asymp.LCL<-mod.emmeanscontrastci$asymp.LCL
+          mod.emmeanscontrast$asymp.UCL<-mod.emmeanscontrastci$asymp.UCL
+          
+          mod.emmeanscontrast$contrast <- gsub("\\.scaled", "", mod.emmeanscontrast$contrast)
+          
+          "####################################"
+          "# Clean Up Labels for Printing"
+          "####################################"
+          mod.emmeanscontrast <- mod.emmeanscontrast %>%
+            dplyr::select(-any_of("null"))%>%
+            set_rownames(NULL) %>%
+            set_colnames(c("Contrast", "Estimate", "SE", "df", "z ratio", "p-value", "Lower CI", "Upper CI"))
+        })
+      }else{
+        metaExpr({
+          "####################################"
+          "# Calculate Marginal Effects" # NOTE
+          "####################################"
+          m<-mean(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+          s<-sd(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+          
+          modvarat<-list(c(round(m-s,2), round(m+s,2)))
+          names(modvarat)<-c(..(moderator))
+          
+          mod.emmeans <- emmeans(model, specs = c(..(moderator), ..(int.var)), var=..(moderator), at=modvarat, type="response")
+          mod.emmeans <- add_grouping(mod.emmeans, "moderator", ..(moderator) ,  c(paste("(Low ",..(moderator),")", sep=""), paste("(High ",..(moderator),")")))
+          mod.emmeanscontrast <-data.frame(pairs(mod.emmeans))
+          
+          mod.emmeanscontrastci<-data.frame(confint(pairs(mod.emmeans)))
+          mod.emmeanscontrast$asymp.LCL<-mod.emmeanscontrastci$asymp.LCL
+          mod.emmeanscontrast$asymp.UCL<-mod.emmeanscontrastci$asymp.UCL
+          
+          mod.emmeanscontrast$contrast <- gsub("\\.scaled", "", mod.emmeanscontrast$contrast)
+          
+          "####################################"
+          "# Clean Up Labels for Printing"
+          "####################################"
+          mod.emmeanscontrast <- mod.emmeanscontrast %>%
+            dplyr::select(-any_of("null"))%>%
+            set_rownames(NULL) %>%
+            set_colnames(c("Contrast", "Estimate", "SE", "df", "z ratio", "p-value", "Lower CI", "Upper CI"))
+        })
+      }
+    }
+  }, inline=TRUE)
+  
+  # Code to create contrast table
+  make_interaction_contrasts_tab<- metaReactive2({
+    
+    mod.emmeanscontrast <- globalVars$mod.emmeanscontrast
+    metaExpr({
+      "####################################"
+      "# Print Table"
+      "####################################"
+      mod.emmeanscontrast %>%
+        mutate_if(is.numeric, round, 4) %>%
+        mutate(`p-value` = ifelse(`p-value` < 0.0001, "<0.0001", `p-value`))
+    })
+  }, inline=TRUE)
+  
+  # Render Table to UI
+  output$interaction_emmeanscontrast_tab <- DT::renderDataTable({
+    globalVars$make_interaction_contrasts_tab
+  },
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = 
+      list("copy", "print", list(
+        extend = "collection",
+        buttons = list(
+          list(extend="csv", filename="model-interaction-contrasts"),
+          list(extend="excel", filename="model-interaction-contrasts"),
+          list(extend="pdf", filename="model-interaction-contrasts")
+        ),
+        text = "Download",
+        filename = "model-interaction-contrasts"
+      ))
+  ), rownames = FALSE)
+  
+  # Download button for summary (LaTeX version)----
+  output$download_interaction_emmeanscontrastLatex <- downloadHandler(
+    filename = function() {
+      "model-interaction-contrasts.tex"
+    },
+    content = function(file) {
+      base::print(xtable(globalVars$make_interaction_contrasts_tab, digits = 4), file, type = "latex")
+    }
+  )
+  
+  # R Code
+  observeEvent(input$code_interaction_emmeans_contrast, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse)
+        library(magrittr)
+        library(emmeans)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      prepare_transformed_data(),
+      prepare_scaled_data(),
+      fitmodel(),
+      prepare_interaction_emmeanscontrasts(),
+      make_interaction_contrasts_tab()
+    )
+    
+    displayCodeModal(
+      code,
+      title = "Interaction Estimated Marginal Means Contrasts Table",
+      size = "l",
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
+  # Interpretation
+  output$interaction_emmeanscontrast_interp <- renderPrint({
+    globalVars$prepare_interaction_emmeanscontrast_interp
+  })
+  
+  prepare_interaction_emmeanscontrast_interp <- function(){
+    mod.emmeanscontrast <- globalVars$mod.emmeanscontrast
+    model <- globalVars$model
+    dat <- globalVars$dataset
+    alpha<-input$alpha
+    
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    
+    if(globalVars$transform.type == "none"){
+      response <- names(model.frame(model))[1]
+    }else if(globalVars$transform.type == "log"){
+      response <- paste("log(", substring(names(model.frame(model))[1], first=17), ")", sep="")  
+    }else if(globalVars$transform.type == "lp1"){
+      response <- paste("log(", substring(names(model.frame(model))[1], first=17), " + 1)", sep="")
+    }else if(globalVars$transform.type == "ihs"){
+      response <- paste("inverse hyperbolic sine transformed ", substring(names(model.frame(model))[1], first=17), sep="")
+    }
+    
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      text <- ""
+      for(i in 1:nrow(mod.emmeanscontrast)){
+        adding.text <- paste("\U2022 The contrast of estimated marginal means of ", sub("\\.scaled$", "", response), " for", " (", gsub("\\.scaled", "", mod.emmeanscontrast$Contrast[i]),") is",
+                             ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " significant ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
+                             ", df = ", round(mod.emmeanscontrast[i,"df"]), ", p-value ", ifelse(mod.emmeanscontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ",round(mod.emmeanscontrast[i,"p-value"],4), sep="")),
+                             "; 95% CI: ", round(mod.emmeanscontrast[i,"Lower CI"],2), ", ", round(mod.emmeanscontrast[i,"Upper CI"],2), ").",
+                             sep="")
+        text <- paste(text, adding.text, sep="<br>")
+      }
+      HTML(text)
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      text <- ""
+      for(i in 1:nrow(mod.emmeanscontrast)){
+        adding.text <- paste("\U2022 The contrast of estimated marginal means of ", sub("\\.scaled$", "", response), " for", " (", gsub("\\.scaled", "", mod.emmeanscontrast$Contrast[i]),") is",
+                             ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " significant ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
+                             ", df = ", round(mod.emmeanscontrast[i,"df"]), ", p-value ", ifelse(mod.emmeanscontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ",round(mod.emmeanscontrast[i,"p-value"],4), sep="")),
+                             "; 95% CI: ", round(mod.emmeanscontrast[i,"Lower CI"],2), ", ", round(mod.emmeanscontrast[i,"Upper CI"],2), ").",
+                             sep="")
+        text <- paste(text, adding.text, sep="<br>")
+      }
+      HTML(text)
+    }else{
+      if(int.vars.classes[moderator]=="factor"){
+        text <- ""
+        for(i in 1:nrow(mod.emmeanscontrast)){
+          adding.text <- paste("\U2022 The contrast of estimated marginal means of ", sub("\\.scaled$", "", response), " for", " (", gsub("\\.scaled", "", as.character(mod.emmeanscontrast$Contrast[i])),") when (", int.var, " = ", mod.emmeanscontrast[i,int.var], ") is",
+                               ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " significant ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
+                               ", df = ", round(mod.emmeanscontrast[i,"df"]), ", p-value ", ifelse(mod.emmeanscontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ",round(mod.emmeanscontrast[i,"p-value"],4), sep="")),
+                               "; 95% CI: ", round(mod.emmeanscontrast[i,"Lower CI"],2), ", ", round(mod.emmeanscontrast[i,"Upper CI"],2), ").",
+                               sep="")
+          text <- paste(text, adding.text, sep="<br>")
+        }
+        HTML(text)
+      }else{
+        text <- ""
+        for(i in 1:nrow(mod.emmeanscontrast)){
+          adding.text <- paste("\U2022 The contrast of estimated marginal means of ", sub("\\.scaled$", "", response), " for", " (", gsub("\\.scaled", "", mod.emmeanscontrast$Contrast[i]),") is",
+                               ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " significant ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
+                               ", df = ", round(mod.emmeanscontrast[i,"df"]), ", p-value ", ifelse(mod.emmeanscontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ",round(mod.emmeanscontrast[i,"p-value"],4), sep="")),
+                               "; 95% CI: ", round(mod.emmeanscontrast[i,"Lower CI"],2), ", ", round(mod.emmeanscontrast[i,"Upper CI"],2), ").",
+                               sep="")
+          text <- paste(text, adding.text, sep="<br>")
+        }
+        HTML(text)
+      }
+    }
+  }
+  
+  #############################################################################################
+  # marginal effects table 
+  #############################################################################################
+  prepare_interaction_emtrends<- metaReactive2({
+    
+    model <-globalVars$model
+    dat <- globalVars$dataset
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      metaExpr({
+        "####################################"
+        "# Calculate Marginal Effects"
+        "####################################"
+        
+        
+        m<-mean(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        s<-sd(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        modvarat<-list(c(round(m-s,2), round(m+s,2)))
+        names(modvarat)<-c(..(moderator))
+        
+        mod.emtrends<-data.frame(emtrends(object = model, spec=..(moderator), var=..(int.var), at=modvarat))
+        mod.emtrends[,..(moderator)]<- ifelse(mod.emtrends[,..(moderator)]==round(m-s,2),"Low (Mean - 1SD)", "High (Mean + 1SD)")
+        
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        colnames(mod.emtrends)[-(1)]<-c(paste("Slope of", ..(int.var)), "SE", "df", "Lower CI", "Upper CI")
+        emtrend.test <-test(emtrends(object = model, spec=..(moderator), var=..(int.var), at=modvarat))
+        mod.emtrends<-mod.emtrends %>% mutate("p-value"= emtrend.test$p.value,
+                                              "z ratio"= emtrend.test$z.ratio) %>%
+          relocate(c(`z ratio`, `p-value`), .after=df)
+        
+      })
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      # HIDE emtrends_tab, emtrends_int
+    }else{
+      if(int.vars.classes[moderator]=="factor"){
+        metaExpr({
+          "####################################"
+          "# Calculate Marginal Effects"
+          "####################################"
+          mod.emtrends<-data.frame(emtrends(model, specs = ..(moderator), var = ..(int.var)))
+          
+          "####################################"
+          "# Clean Up Labels for Printing"
+          "####################################"
+          colnames(mod.emtrends)[-(1)]<-c(paste("Slope of", ..(int.var)), "SE", "df", "Lower CI", "Upper CI")
+          emtrend.test <-test(emtrends(model, specs = ..(moderator), var = ..(int.var)))
+          mod.emtrends<-mod.emtrends %>% mutate("p-value"= emtrend.test$p.value,
+                                                "z ratio"= emtrend.test$z.ratio)%>%
+            relocate(c(`z ratio`, `p-value`), .after=df)
+        })
+      }else{
+        # HIDE emtrends_tab, emtrends_int
+      }
+    }
+  }, inline=TRUE)
+  
+  make_interaction_emtrends_tab <- metaReactive2({
+    
+    mod.emtrends<-globalVars$mod.emtrends
+    
+    metaExpr({
+      "####################################"
+      "# Print Table"
+      "####################################"
+      mod.emtrends %>%
+        mutate_if(is.numeric, round, 4) %>%
+        mutate(`p-value` = ifelse(`p-value` < 0.0001, "<0.0001", `p-value`))
+    })
+  }, inline=TRUE)
+  
+  ### Render Model Summary to UI
+  output$interaction_emtrends_tab <- DT::renderDataTable({
+    globalVars$make_interaction_emtrends_tab
+  },
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = 
+      list("copy", "print", list(
+        extend = "collection",
+        buttons = list(
+          list(extend="csv", filename="model-interaction-marginaleffects"),
+          list(extend="excel", filename="model-interaction-marginaleffects"),
+          list(extend="pdf", filename="model-interaction-marginaleffects")
+        ),
+        text = "Download",
+        filename = "model-interaction-marginaleffects"
+      ))
+  ), rownames = FALSE)
+  
+  # Download button for summary (LaTeX version)----
+  output$download_interaction_emtrendsLatex <- downloadHandler(
+    filename = function() {
+      paste("model-interaction-marginaleffects.tex", sep="")
+    },
+    content = function(file) {
+      base::print(xtable(globalVars$make_interaction_emtrends_tab, digits = 4), file, type = "latex")
+    }
+  )
+  
+  # R Code
+  # Display code for ci visualization plot ----
+  observeEvent(input$code_interaction_emtrendstab, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse) 
+        library(magrittr)
+        library(emmeans)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      prepare_transformed_data(),
+      prepare_scaled_data(),
+      fitmodel(),
+      prepare_interaction_emtrends(),
+      make_interaction_emtrends_tab()
+    )
+    
+    displayCodeModal(
+      code, 
+      title = "Interaction Marginal Effects Table",
+      size = "l", 
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
+  
+  output$interaction_emtrends_interp <- renderUI({  
+    globalVars$prepare_interaction_emtrends_interp
+  })
+  
+  prepare_interaction_emtrends_interp <- function(){
+    mod.emtrends<-globalVars$mod.emtrends
+    model<-globalVars$model
+    dat = globalVars$dataset
+    alpha <- input$alpha
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    
+    emtrends.interp<-""
+    for(i in 1:nrow(mod.emtrends)){
+      if(class(mod.emtrends[,1])=="factor" | class(mod.emtrends[,1])=="character"){
+        emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrends[i,"p-value"]<alpha, "significant ", "not significant "),
+                                 "when ", gsub("\\.scaled", "", (moderator)), " is ", mod.emtrends[i,1],
+                                 " (Slope = ", round(mod.emtrends[i,2],4),
+                                 ", z ratio = ", round(mod.emtrends[i,"z ratio"],4),
+                                 ", p-value ",  ifelse(mod.emtrends[i,"p-value"]<0.0001,"< 0.0001", paste("= ", round(mod.emtrends[i,"p-value"],4), sep="")), ").<br/>",
+                                 sep="")
+      }else{
+        emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrends[i,"p-value"]<alpha, "significant ", "not significant "),
+                                 "when ", gsub("\\.scaled", "", (moderator)), " is ", round(mod.emtrends[i,1],4),
+                                 " (Slope = ", round(mod.emtrends[i,2],4),
+                                 ", z ratio = ", round(mod.emtrends[i,"z ratio"],4),
+                                 ", p-value ",  ifelse(mod.emtrends[i,"p-value"]<0.0001,"< 0.0001", paste("= ", round(mod.emtrends[i,"p-value"],4), sep="")), ").<br/>",
+                                 sep="")
+      }
+    }
+    
+    if(globalVars$transform.type == "none"){
+      emtrends.interp<-paste(emtrends.interp, "<br/><strong>Note:</strong> These marginal effects are calculated at the 'average' of the other variables in the model.",
+                             "You may want to set the other variables to specific values, which is supported in R but not currently supported in this application.")      
+    }else if(globalVars$transform.type == "log"){
+      emtrends.interp<-paste(emtrends.interp, "<br/><strong>Note:</strong> These effects are on the original log-transformed response. Further, note that these marginal effects are calculated at the 'average' of the other variables in the model.",
+                             "You may want to set the other variables to specific values, which is supported in R but not currently supported in this application.")
+    }else if(globalVars$transform.type == "lp1"){
+      emtrends.interp<-paste(emtrends.interp, "<br/><strong>Note:</strong> These effects are on the original log-plus-1-transformed response. Further, note that these marginal effects are calculated at the 'average' of the other variables in the model.",
+                             "You may want to set the other variables to specific values, which is supported in R but not currently supported in this application.")
+    }else if(globalVars$transform.type == "ihs"){
+      emtrends.interp<-paste(emtrends.interp, "<br/><strong>Note:</strong> These effects are on the original inverse hyperbolic sine transformed response. Further, note that these marginal effects are calculated at the 'average' of the other variables in the model.",
+                             "You may want to set the other variables to specific values, which is supported in R but not currently supported in this application.")
+    }
+    
+    HTML(emtrends.interp)
+  }
+  
+  #############################################################################################
+  # marginal effects contrast table 
+  #############################################################################################
+  prepare_interaction_emtcontrast<- metaReactive2({
+    
+    model <-globalVars$model
+    dat <- globalVars$dataset
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      metaExpr({
+        "####################################"
+        "# Calculate Marginal Effects Contrasts"
+        "####################################"
+        m.mod<-mean(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        s.mod<-sd(unlist(model.frame(model)[..(moderator)]), na.rm=T)
+        m.var<-mean(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+        s.var<-sd(unlist(model.frame(model)[..(int.var)]), na.rm=T)
+        modvarat<-list(c(round(m.mod-s.mod,2), round(m.mod+s.mod,2)),
+                       c(round(m.var-s.var,2), round(m.var+s.var,2)))
+        names(modvarat)<-c((..(moderator)), ..(int.var))
+        mod.emtrends <- emtrends(object = model, spec=..(moderator), var=..(int.var), at=modvarat)
+        mod.emtrends <- add_grouping(mod.emtrends, "moderator", ..(moderator) , c(paste("(Low ", ..(moderator),")", sep=""), paste("(High ", ..(moderator),")", sep="")))
+        mod.emtrends <- emmeans(mod.emtrends, spec="moderator", var=(int.var), at=modvarat)
+        
+        mod.emtrendcontrast <-data.frame(pairs(mod.emtrends))
+        mod.emtrendcontrastci<-data.frame(confint(pairs(mod.emtrends)))
+        mod.emtrendcontrast$asymp.LCL<-mod.emtrendcontrastci$asymp.LCL
+        mod.emtrendcontrast$asymp.UCL<-mod.emtrendcontrastci$asymp.UCL
+        
+        mod.emtrendcontrast$contrast <- gsub("\\.scaled", "", mod.emtrendcontrast$contrast)
+        
+        "####################################"
+        "# Clean Up Labels for Printing"
+        "####################################"
+        mod.emtrendcontrast <- mod.emtrendcontrast %>%
+          set_rownames(NULL) %>%
+          set_colnames(c("Contrast", "Estimate", "SE", "df", "z ratio", "p-value", "Lower CI", "Upper CI"))
+      })
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      # HIDE emtrends_tab, emtrends_int
+    }else{
+      if(int.vars.classes[moderator]=="factor"){
+        metaExpr({
+          "####################################"
+          "# Calculate Marginal Effects Contrasts"
+          "####################################"
+          mod.emtrends <- emtrends(object = model, spec=..(moderator), var=..(int.var))
+          mod.emtrendcontrast <-data.frame(pairs(mod.emtrends))
+          
+          mod.emtrendcontrastci<-data.frame(confint(pairs(mod.emtrends)))
+          mod.emtrendcontrast$asymp.LCL<-mod.emtrendcontrastci$asymp.LCL
+          mod.emtrendcontrast$asymp.UCL<-mod.emtrendcontrastci$asymp.UCL
+          
+          mod.emtrendcontrast$contrast <- gsub("\\.scaled", "", mod.emtrendcontrast$contrast)
+          
+          "####################################"
+          "# Clean Up Labels for Printing"
+          "####################################"
+          mod.emtrendcontrast <- mod.emtrendcontrast %>%
+            set_rownames(NULL) %>%
+            set_colnames(c("Contrast", "Estimate", "SE", "df", "z ratio", "p-value", "Lower CI", "Upper CI"))
+          
+        })
+      }else{
+        # HIDE emtrends_tab, emtrends_int
+      }
+    }
+  }, inline=TRUE)
+  
+  make_interaction_emtrendscontrast_table <- metaReactive2({
+    
+    mod.emtrendcontrast<-globalVars$mod.emtrendcontrast
+    
+    metaExpr({
+      "####################################"
+      "# Print Table"
+      "####################################"
+      mod.emtrendcontrast %>%
+        mutate_if(is.numeric, round, 4) %>%
+        mutate(`p-value` = ifelse(`p-value` < 0.0001, "<0.0001", `p-value`))
+    })
+  }, inline=TRUE)
+  
+  ### Render Model Summary to UI
+  output$interaction_emtrendscontrast_tab <- DT::renderDataTable({
+    globalVars$make_interaction_emtrendscontrast_table
+  },
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = 
+      list("copy", "print", list(
+        extend = "collection",
+        buttons = list(
+          list(extend="csv", filename="model-interaction-marginaleffectscontrast"),
+          list(extend="excel", filename="model-interaction-marginaleffectscontrast"),
+          list(extend="pdf", filename="model-interaction-marginaleffectscontrast")
+        ),
+        text = "Download",
+        filename = "model-interaction-marginaleffectscontrast"
+      ))
+  ), rownames = FALSE)
+  
+  # Download button for summary (LaTeX version)----
+  output$download_interaction_emtrendscontrastLatex <- downloadHandler(
+    filename = function() {
+      paste("model-interaction-marginaleffectscontrast.tex", sep="")
+    },
+    content = function(file) {
+      base::print(xtable(globalVars$make_interaction_emtrendscontrast_table, digits = 4), file, type = "latex")
+    }
+  )
+  
+  # R Code
+  # Display code for ci visualization plot ----
+  observeEvent(input$code_interaction_emtrendscontrasttab, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse) 
+        library(magrittr)
+        library(emmeans)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      prepare_transformed_data(),
+      prepare_scaled_data(),
+      fitmodel(),
+      prepare_interaction_emtcontrast(),
+      make_interaction_emtrendscontrast_table()
+    )
+    
+    displayCodeModal(
+      code, 
+      title = "Interaction Marginal Effects Contrasts Table",
+      size = "l", 
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
+  output$interaction_emtrendscontrast_interp <- renderUI({  
+    globalVars$prepare_interaction_emtrendscontrast_interp
+  })
+  
+  prepare_interaction_emtrendscontrast_interp <- function(){
+    mod.emtrendcontrast<-globalVars$mod.emtrendcontrast
+    model<-globalVars$model
+    
+    alpha <- input$alpha
+    dat = globalVars$dataset
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    
+    emtrends.interp<-""
+    for(i in 1:nrow(mod.emtrendcontrast)){
+      emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrendcontrast[i,"p-value"]<alpha, "significantly ", "not significantly "),
+                               "different by ", gsub("\\.scaled", "", (moderator)), 
+                               " (Contrast = ", mod.emtrendcontrast[i,"Contrast"],
+                               ", Estimate = ", round(mod.emtrendcontrast[i,"Estimate"],4),
+                               ", z ratio = ", round(mod.emtrendcontrast[i,"z ratio"],4),
+                               ", p-value ",  ifelse(mod.emtrendcontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ", round(mod.emtrendcontrast[i,"p-value"],4), sep="")), ").<br/>",
+                               sep="")
+    }
+    
+    HTML(emtrends.interp)
+  }
+  
+  #############################################################################################
+  # Johnson Neyman Plot
+  #############################################################################################
+  # Code for Johnson Neyman Plot
+  jnplot <- metaReactive2({
+    req(globalVars$model)
+    
+    dat <- globalVars$dataset
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      model<-globalVars$model
+      
+      metaExpr({
+        "####################################"
+        "# Johnson Neyman"
+        "####################################"
+        jn<-interactions::johnson_neyman(model = model, pred =  !!sym(..(int.var)), 
+                                         modx = !!sym(..(moderator)),
+                                         control.fdr = TRUE, plot = FALSE)
+        
+        "####################################"
+        "# Plot"
+        "####################################"
+        p<-jn$plot + 
+          xlab(..(moderator))+
+          ylab(paste("Slope of ", ..(int.var),sep=""))+
+          ggtitle("Johnson-Neyman Plot")+
+          scale_color_brewer(paste("Slope of ", ..(int.var),sep=""), palette = "Pastel1")+
+          scale_fill_brewer(paste("Slope of ", ..(int.var),sep=""), palette = "Pastel1")+
+          theme_bw()
+        # If greyscale, this bit is needed
+        # p$layers[[9]]  <- geom_vline(xintercept = jnplot$bounds[1], color="black", linetype="dashed")
+        # p$layers[[10]] <- geom_vline(xintercept = jnplot$bounds[2], color="black", linetype="dashed")
+        p
+      })
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      #not appropriate
+      cat("Johnson Neyman plots do not support categorical predictors.")
+    }else{ #One of Each
+      #not appropriate
+      cat("Johnson Neyman plots do not support categorical predictors.")
+    }
+  },inline=TRUE)
+  
+  # Render plot to UI
+  output$jn_plot <- renderPlot({
+    globalVars$jnplot
+  })
+  
+  # R Code
+  observeEvent(input$code_jn, {
+    code <- expandChain(
+      "# Ensure to load your data as an object called dat.",
+      quote({
+        library(tidyverse) 
+        library(interactions)
+      }),
+      "####################################",
+      "# Load Data",
+      "####################################",
+      read_data(),
+      refactor_data(),
+      prepare_transformed_data(),
+      prepare_scaled_data(),
+      fitmodel(),
+      jnplot()
+    )
+    
+    displayCodeModal(
+      code, 
+      title = "Johnson Neyman Plot",
+      size = "l", 
+      fontSize = 16,
+      clip=NULL
+    )
+  })
+  
+  # Interpret Johnson Neyman Plot
+  output$jn_int <- renderPrint({
+    globalVars$prepare_jn_int
+  })
+  
+  prepare_jn_int <- function(){
+    
+    dat <- globalVars$dataset
+    
+    interacts<-input$var_inter
+    
+    interact.vars <- strsplit(x = interacts, split = "[:]")[[1]]
+    int.var <-interact.vars[which(interact.vars != input$var_moderator)]
+    moderator<-input$var_moderator
+    
+    int.vars.classes<-sapply(X = dat[,interact.vars], FUN = class)
+    
+    model<-globalVars$model
+    
+    if(all(int.vars.classes=="numeric")){ #Both Continuous
+      jn<-interactions::johnson_neyman(model = model, pred = !!sym(moderator), modx = !!sym(int.var),
+                                       control.fdr = TRUE, plot = FALSE)
+      jn<-paste(capture.output(jn), collapse=" ")
+      jn<-crayon::strip_style(jn)
+      jn<-str_remove(string = jn, pattern = "JOHNSON-NEYMAN INTERVAL   ")
+      jn<-str_replace(string = jn, pattern = "slope", replacement = "effect")
+      jn<-str_replace(string = jn, pattern = "Interval calculated using", replacement = "and the interval was calculated using")
+      jn<-strsplit(jn, "adjusted")[[1]][1]
+      jn<-paste(jn, "adjustment.", sep="")
+      jn<-str_replace(string = jn, pattern = "Note:", replacement = "<br><strong>Note:</strong>")
+      jn <- paste("\U2022 ", jn, sep="")
+      jn <- gsub("\\.scaled", "", jn)
+      
+      HTML(jn)
+      
+    }else if(all(int.vars.classes=="factor")){ #Both Factors
+      #not appropriate
+      HTML("Johnson Neyman plots do not support categorical predictors.")
+    }else{ #One of Each
+      #not appropriate
+      HTML("Johnson Neyman plots do not support categorical predictors.")
+    }
+  }
+  
+  # Download button for plots (call reactive function here to get plot object) ----
+  output$downloadjnPlot <- downloadHandler(
+    filename = function() { paste('johnsonneymanplot.', input$jn_plot_format, sep='') },
+    content = function(file) {
+      ggsave(file, plot = globalVars$jnplot, device = input$jn_plot_format, 
+             height = as.numeric(input$jn_plot_height), width = as.numeric(input$jn_plot_width), 
+             units = input$jn_plot_units)
+    }
+  )
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   #############################################################################################
@@ -1183,8 +2468,6 @@ server <- (function(input, output, session){
         if((grepl("[*]", globalVars$equation))){
           # for any model with an interaction
           shinyjs::show("marginaleffectsdiv")
-          
-         # browser()
           globalVars$modelmargins <- prepare_model_margins()
           globalVars$make_margins_summary <- make_margins_summary()
           globalVars$prepare_margins_interp <- prepare_margins_interp()
@@ -1297,7 +2580,7 @@ server <- (function(input, output, session){
         "####################################"
         "# Clean Up Labels for Printing"
         "####################################"
-        mod.classes<-sapply(X = model$model, FUN = class)[-1]
+        mod.classes<-sapply(X = model.frame(model), FUN = class)[-1]
         mod.classes<-mod.classes[which(mod.classes=="factor")]
         for(vname in names(mod.classes)){
           ind <- grepl(x=rownames(mod.table_count), pattern = vname)
@@ -1330,7 +2613,7 @@ server <- (function(input, output, session){
         "####################################"
         "# Clean Up Labels for Printing"
         "####################################"
-        mod.classes<-sapply(X = model$model, FUN = class)[-1]
+        mod.classes<-sapply(X = model.frame(model), FUN = class)[-1]
         mod.classes<-mod.classes[which(mod.classes=="factor")]
         for(vname in names(mod.classes)){
           ind <- grepl(x=rownames(mod.table_zero), pattern = vname)
@@ -1402,7 +2685,7 @@ server <- (function(input, output, session){
       "####################################"
       "# Clean Up Labels for Printing"
       "####################################"
-      mod.classes<-sapply(X = model$model, FUN = class)[-1]
+      mod.classes<-sapply(X = model.frame(model), FUN = class)[-1]
       mod.classes<-mod.classes[which(mod.classes=="factor")]
       for(vname in names(mod.classes)){
         ind <- grepl(x=rownames(mod.table), pattern = vname)
@@ -1593,11 +2876,11 @@ server <- (function(input, output, session){
             }
             if (mod.table$`Model Part`[i] == "Count Model"){
               adding.text <- paste("\U2022 COUNT SIDE AHHH For TOMM FIXX every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
-                                     "in ", sub("\\.scaled$", "", names(model$model)[1]), ", on average.", sig.text, "\n", sep="")
+                                     "in ", sub("\\.scaled$", "", names(model.frame(model))[1]), ", on average.", sig.text, "\n", sep="")
             }
             else{
                 adding.text <- paste("\U2022 ZERO SIDE TOM FIXXX SIDE AHHH For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
-                                     "in ", sub("\\.scaled$", "", names(model$model)[1]), ", on average.", sig.text, "\n", sep="")
+                                     "in ", sub("\\.scaled$", "", names(model.frame(model))[1]), ", on average.", sig.text, "\n", sep="")
               
             }
             
@@ -1606,9 +2889,9 @@ server <- (function(input, output, session){
           else{ #factor
             findequal <- str_locate(string=curr.row, pattern = " = ")
             varname <- substr(curr.row, start = 1, stop = findequal[1]-1)
-            baselevel<-paste(varname, "=", levels(model$model[,varname])[1])
+            baselevel<-paste(varname, "=", levels(model.frame(model)[,varname])[1])
             
-            adding.text <- paste("\U2022 We expect ", gsub("\\.scaled", "", names(model$model)[1]), " to be ", round(abs(effect.value),4), ifelse(effect.value<0, " lower ", " higher "), "when ",
+            adding.text <- paste("\U2022 We expect ", gsub("\\.scaled", "", names(model.frame(model))[1]), " to be ", round(abs(effect.value),4), ifelse(effect.value<0, " lower ", " higher "), "when ",
                                    curr.row, " compared to ", baselevel, ", on average", sig.text, "\n", sep="")
            
             secondPart <- paste(secondPart, adding.text, sep="<br/>")
@@ -1651,16 +2934,16 @@ server <- (function(input, output, session){
             }
             
             adding.text <- paste("\U2022 For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
-                                 "in ", sub("\\.scaled$", "", names(model$model)[1]), ", on average.", sig.text, "\n", sep="")
+                                 "in ", sub("\\.scaled$", "", names(model.frame(model))[1]), ", on average.", sig.text, "\n", sep="")
             
             secondPart <- paste(secondPart, adding.text, sep="<br/>")
           }
           else{ #factor
             findequal <- str_locate(string=curr.row, pattern = " = ")
             varname <- substr(curr.row, start = 1, stop = findequal[1]-1)
-            baselevel<-paste(varname, "=", levels(model$model[,varname])[1])
+            baselevel<-paste(varname, "=", levels(model.frame(model)[,varname])[1])
             
-            adding.text <- paste("\U2022 We expect ", gsub("\\.scaled", "", names(model$model)[1]), " to be ", round(abs(effect.value),4), ifelse(effect.value<0, " lower ", " higher "), "when ",
+            adding.text <- paste("\U2022 We expect ", gsub("\\.scaled", "", names(model.frame(model))[1]), " to be ", round(abs(effect.value),4), ifelse(effect.value<0, " lower ", " higher "), "when ",
                                  curr.row, " compared to ", baselevel, ", on average", sig.text, "\n", sep="")
             
             secondPart <- paste(secondPart, adding.text, sep="<br/>")
@@ -1690,7 +2973,6 @@ server <- (function(input, output, session){
   # Coefficient/Marginal Effect Interpretations BOO
   #############################################################################################
   prepare_model_margins <- metaReactive2({
-    #browser()
     req(globalVars$model)
     dat <- globalVars$dataset
     model <- globalVars$model
@@ -1832,7 +3114,7 @@ server <- (function(input, output, session){
         }
         
         adding.text <- paste("\U2022 For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
-                               "in ", sub("\\.scaled$", "", names(model$model)[1]), ", on average.", sig.text, " (z=", round(z.value, 4), " p=",  p.value,  ").", "\n", sep="")
+                               "in ", sub("\\.scaled$", "", names(model.frame(model))[1]), ", on average.", sig.text, " (z=", round(z.value, 4), " p=",  p.value,  ").", "\n", sep="")
   
         first.part <- paste(first.part, adding.text, sep="<br/>")
       }
@@ -1858,58 +3140,7 @@ server <- (function(input, output, session){
     }
     HTML(paste(first.part, second.part, sep="<br/>"))
   }
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   ########################################################
   # Zero Inflated Test NEED SERIOUS FIXING TOMM NOTE only for tweezerAno
   ########################################################
@@ -2462,7 +3693,7 @@ make_check_plot <- metaReactive2({
     "####################################"
     "# Create Data for Leverage Plot"
     "####################################"
-    d <- model$model 
+    d <- model.frame(model) 
     n <- nrow(d)
     p <- length(coef(model))
     d <- d %>% mutate(obs = 1:n)
@@ -2637,7 +3868,7 @@ make_ggpairs_plot <- metaReactive2({
       
     }
     else{
-      ggpairs(model$model, progress = F, upper = upper, lower = lower) +
+      ggpairs(model.frame(model), progress = F, upper = upper, lower = lower) +
         theme_bw()+
         theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
         scale_fill_grey()+
@@ -2738,7 +3969,7 @@ make_ggpairs_summary <- metaReactive2({
       "####################################"
       "# Create Data for Correlation Matrix"
       "####################################"
-      modmatrix <- model$model %>% 
+      modmatrix <- model.frame(model) %>% 
         select_if(is.numeric)
       cormats<-Hmisc::rcorr(as.matrix(modmatrix), type = "pearson")
       cormat<-round(cormats$r,4)
@@ -2826,7 +4057,6 @@ prepare_anova <- metaReactive2({
   type <-  globalVars$model_choice
   
   if (type == "Zero-Inflated Poisson" || type == "Zero Inflated Negative Binomial"){
-    #Note ask cipolli if we care about interactions in zero side of model
     metaExpr({
       
       coef.table <- data.frame(summary(model)$coefficients$cond) 
