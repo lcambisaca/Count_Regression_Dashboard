@@ -180,10 +180,10 @@ ui <- tagList(
                                                     p("In the zero-inflated poisson model, there is now a second intercept value that serves as the logistic regression. This helps us account for the 'zero inflation', for lack of a better term. However, we can see that Age does not seem to be an important parameter."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_zip_asmp_graph.png", height = "600px", width = "700px"),
-                                                    p(""),
+                                                    p("Our dataset still has many fitted values around 0, but the residuals are generally OK. Thus, the next tab to check is the ANOVA tab."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_zip_anova_output.png", height = "300px", width = "570px"),
-                                                    p(""),
+                                                    p("That said, in our interpretations, our output table shows tha Age is still not considered statistically discernible, whereas days is. As such, in this model, Days is a discernible indicator for number of kills."),
                                                     tags$hr()
                                           )
                                            
