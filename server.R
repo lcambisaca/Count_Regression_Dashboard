@@ -2836,10 +2836,11 @@ server <- (function(input, output, session){
       ").<br/>",
       
       "\U2022 The McFadden's Pseudo R-squared is ", round(mcfadden_r2, 4),
-      ". This represents the proportion of total deviance explained by the predictors.<br/>",
+      ". This represents the proportion of total deviance explained by the predictors. For different datasets and within different contexts, the threshold for what is considered 'good'
+      is subject to change. In general, if the value is higher than the odds of randomly guessing, then the model can be considered strong. <br/>",
       
-      "\U2022 The Log-Likelihood is ", round(ll_full, 4),
-      ". This value measures how well the model supports the observed data.<br/>",
+      "\U2022 The negative Log-Likelihood is ", round(ll_full, 4),
+      ". This value measures how well the model supports the observed data. The higher this value, the better the model is for the data. This is best used for comparing one model to another. <br/>",
       sep=""
     )
     
@@ -3133,8 +3134,8 @@ server <- (function(input, output, session){
     
     
     if(any(grepl(x = model$call$formula, pattern = "*"))|any(grepl(x = model$call$formula, pattern = ":"))){
-      second.part <- paste("<br/><strong>Note:</strong> This model has interactions so these interpretations are based on marginal effects, which are partial 
-          derivatives of the regression equation with respect to each variable. These marginal effects are calculated as 
+      second.part <- paste("<br/><strong>Note:</strong> This model has interactions which are based on marginal effects. Marginal effects are partial 
+          derivatives of the regression equation with respect to each variable, calculated as 
           the average change across observations. Calculating marginal effects at representative prespecified values is 
           supported in R, but not currently supported in this application.")
     }
