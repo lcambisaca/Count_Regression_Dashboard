@@ -142,7 +142,7 @@ server <- (function(input, output, session){
   ##############################################
   output$preview.data <- DT::renderDataTable({ # this gets called from ui when we want to render dataset e.r call oreview
     if(globalVars$sample){ #Edit this for sample data
-      filename <- case_when(input$sample_data_choice=="Bracht et al. MFAP4"                             ~ "BrachtMFAP4Data",
+      filename <- case_when(input$sample_data_choice=="Kitsberg et al. Nucleus"                             ~ "BrachtMFAP4Data",
                             input$sample_data_choice=="Palmer Penguins"                                 ~ "PalmerPenguin",
                             input$sample_data_choice=="U.S. News College Data"                          ~ "College",
                             input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data",
@@ -189,11 +189,10 @@ server <- (function(input, output, session){
   
   read_data <- metaReactive2({
     if(globalVars$sample){
-      if(input$sample_data_choice=="Bracht et al. MFAP4"){
+      if(input$sample_data_choice=="Kitsberg et al. Nucleus"){
         metaExpr({
           "# You can download the data on the Data Preview page"
-          dat<-read_csv("BrachtMFAP4Data.csv")%>%
-            mutate(Age=as.numeric(Age))
+          dat<-read_csv("Kitsberg25-nucleus.csv")
         })
       }else if(input$sample_data_choice=="Palmer Penguins"){
         metaExpr({
@@ -373,9 +372,8 @@ server <- (function(input, output, session){
       if(input$sample_data_choice=="Palmer Penguins"){
         library(palmerpenguins)
         dat<-data.frame(penguins)
-      }else if(input$sample_data_choice=="Bracht et al. MFAP4" ){
-        dat<-read.csv("www/BrachtMFAP4Data.csv")%>%
-          mutate(Age=as.numeric(Age))
+      }else if(input$sample_data_choice=="Kitsberg et al. Nucleus" ){
+        dat<-read.csv("www/Kitsberg25-nucleus.csv")
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
         dat<- College
@@ -736,7 +734,7 @@ server <- (function(input, output, session){
       hideTab(inputId="workPanel", target="interaction")   
     }else{
       showModal(modalDialog("Things are happening in the background!", footer=NULL))
-      browser()
+      #browser()
       globalVars$emmeans <- prepare_interaction_emmeans() # Good
       globalVars$mod.emmeanscontrast <- prepare_interaction_emmeanscontrasts() # Good
       globalVars$mod.emtrends <- prepare_interaction_emtrends()
@@ -2058,9 +2056,8 @@ server <- (function(input, output, session){
       if(input$sample_data_choice=="Palmer Penguins"){
         library(palmerpenguins)
         dat<-data.frame(penguins)
-      }else if(input$sample_data_choice=="Bracht et al. MFAP4" ){
-        dat<-read.csv("www/BrachtMFAP4Data.csv")%>%
-          mutate(Age=as.numeric(Age))
+      }else if(input$sample_data_choice=="Kitsberg et al. Nucleus" ){
+        dat<-read.csv("www/Kitsberg25-nucleus.csv")
       }else if(input$sample_data_choice=="U.S. News College Data"){
         library(ISLR)
         dat<-College
@@ -2431,8 +2428,8 @@ server <- (function(input, output, session){
         }
         
 
-      #  globalVars$make_ggpairs_plot <- make_ggpairs_plot()
-     #   globalVars$make_ggpairs_summary <- make_ggpairs_summary()
+        globalVars$make_ggpairs_plot <- make_ggpairs_plot()
+        globalVars$make_ggpairs_summary <- make_ggpairs_summary()
         
 
         globalVars$RQRPlot <- tryCatch({ # make_assumptions_plot

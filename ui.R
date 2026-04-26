@@ -136,7 +136,7 @@ ui <- tagList(
              tabPanel("Tutorial",
                       tabsetPanel(id = "Examples", # Basically creates a subset of tabs inside a page
                                   tabPanel("Example 1",
-                                           h1("Example 1", align = "center"),
+                                           h1("Example 1: Poisson to Zero-Inflated", align = "center"), #Note, this needs revision. Please revisit when I(Age^2) works properly.
                                            
                                            tags$div(class = "paragraph", tags$hr(),
                                                     p("Within this app, there is a provided dataset that contains a representative sample of n=47 Ache hunters by Micmillan et (2001). The researchers assessed the hunters' ages, the number of kills by each hunter, and the duration of each trek made by the hunters."),
@@ -191,10 +191,13 @@ ui <- tagList(
                                            
                                   ),
                                   tabPanel("Example 2",
-                                           h1("Example 2", align = "center"),
+                                           h1("Example 2: Interactions in Negative Binomial", align = "center"),
                                            tags$div(class = "paragraph", tags$hr(),
-                                                    tags$img(src = "Shaw.png", height = "250px", width = "125px"),
-                                                    tags$img(src = "/images/knight.png", height = "498px", width = "481px")
+                                                    p("Within this app, there is data included about blood samples obtained from healthy donors of both sexes, aged 25-45."),
+                                                    p("They infected the cells of primary (human donor’s blood) or THP1 (purchased cell lines) monocytes (n = 87 and n = 112, respectively) and macrophages (n = 93 and n = 170, respectively) and counted the number of viral genomes in the nuclei."),
+                                                    p("The goal is to determine if the virus is more prevalent in the nucleus of monocytes or machophages to explain HCMV's dormancy in monocytes and activity in macrophages."),
+                                                    tags$hr(),
+                                                    wellPanel(strong("viruses.within.nucleus ~ SampleType * CellType"))
    
                                           )
                                   )
@@ -206,7 +209,7 @@ ui <- tagList(
                         actionButton("sample", "Sample Data"),
                         hidden(div(id='choose_sample', #div is a box
                                    selectInput("sample_data_choice","Sample Data:",
-                                               choices = c("Camera Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data", "Ache Monkey"),
+                                               choices = c("Camera Data", "Palmer Penguins", "Kitsberg et al. Nucleus" ,"U.S. News College Data", "Ache Monkey"),
                                                selected = "U.S. News College Data"))),
                         tags$hr(), #shaw shaw
                         div(id='choose_model',
