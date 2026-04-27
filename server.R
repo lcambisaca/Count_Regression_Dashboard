@@ -2450,14 +2450,22 @@ server <- (function(input, output, session){
         })
         
         globalVars$Pearson_Residual <- tryCatch({
+<<<<<<< HEAD
           Pearson_Residual()
+=======
+           Pearson_Residual()
+>>>>>>> refs/remotes/origin/main
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the Pearson Plot.", type = "error")
           NULL
         })
         
         globalVars$ZeroInflated <- tryCatch({ # HAve to set up for ZIP and Tweezer whatever doesnt use it
+<<<<<<< HEAD
          ZeroInflated()
+=======
+           ZeroInflated()
+>>>>>>> refs/remotes/origin/main
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the ZeroInflated Plot.", type = "error")
           NULL
@@ -2471,7 +2479,8 @@ server <- (function(input, output, session){
         showAllTabs()
         updateTabsetPanel(session, "workPanel", selected = "summary")
         
-        ### Show interaction outputs, if necessary
+        
+        
         if((grepl("[*]", globalVars$equation))){
           # for any model with an interaction
           shinyjs::show("marginaleffectsdiv")
@@ -3587,9 +3596,6 @@ observeEvent(input$code_vif, {
 })
 
 
-
-
-
 #############################################################################################
 # Leverage and Outliers
 #############################################################################################
@@ -3690,9 +3696,6 @@ make_check_plot <- metaReactive2({
       "# Print ZIP Diagnostic Grid"
       "####################################"
       (p1 | p2) / (p3 | p4)
-    
-    
-    
     
   }
   else{
@@ -4329,6 +4332,8 @@ prepare_anova_fctcomp <- metaReactive2({
 make_anovafctcomp_plot <- metaReactive2({
   req(globalVars$anova)
   anova_fctcomp.table <- globalVars$anova_fctcomp
+ # browser()
+  
   
   if(length(unique(anova_fctcomp.table$Variable))==1){
     metaExpr({
@@ -4350,7 +4355,7 @@ make_anovafctcomp_plot <- metaReactive2({
       "####################################"
       "# Create Plot"
       "####################################"
-      ggplot(data=anova_fctcomp.table, aes(x=Estimate, y=Contrast))+
+      ggplot(data=anova_fctcomp.table, aes(x=`Ratio (IRR)`, y=Contrast))+
         geom_point()+
         geom_errorbar(aes(xmin=`Lower CI`, xmax=`Upper CI`), width=0.1) +
         xlab("Estimate")+
