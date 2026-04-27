@@ -41,9 +41,9 @@ library(interactions)#for johnson neyman
 library(ggeffects)   #for marginal effects plots
 library(emmeans)     #for estimated marginal means
 library(car)         #for anova
-#library(crayon)      #for removing style from Johnson Neyman output
+
 library(effectsize)
-#library(ggforce)
+
 library(pscl)
 library(DHARMa)
 library(tweedie)
