@@ -648,7 +648,7 @@ server <- (function(input, output, session){
         }
         else if (mod_type == "Negative Binomial") {
           # Requires library(MASS)
-          quote(MASS::glm.nb(formula, data = dat))
+          quote(glmmTMB(formula, data = dat, family = nbinom2))
         } else if (mod_type == "Quasi-Poisson") {
           # Overdispersion adjustment
           quote(glm(formula, data = dat, family = quasipoisson(link = "log")))
@@ -2365,7 +2365,7 @@ server <- (function(input, output, session){
         
 
         if (is.null(model)) {
-          print("Erorr Message Appeared or Model is NULL!")
+          print("Error Message Appeared or Model is NULL!")
           return(NULL)
         }
         
@@ -2433,7 +2433,7 @@ server <- (function(input, output, session){
         
 
         globalVars$RQRPlot <- tryCatch({ # make_assumptions_plot
-   #       RQRPlot()
+          RQRPlot()
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the RQR Plot.", type = "error")
           NULL

@@ -41,9 +41,9 @@ library(interactions)#for johnson neyman
 library(ggeffects)   #for marginal effects plots
 library(emmeans)     #for estimated marginal means
 library(car)         #for anova
-#library(crayon)      #for removing style from Johnson Neyman output
+library(crayon)      #for removing style from Johnson Neyman output
 library(effectsize)
-#library(ggforce)
+library(ggforce)
 library(pscl)
 library(DHARMa)
 library(tweedie)
@@ -374,7 +374,7 @@ ui <- tagList(
                                                        h3("Visualization"),
                                                        fluidRow(column(12, actionButton("code_RQR", "R code", icon("code")))),
                                                        br(),
-                                                       #fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
                                                        fluidRow(
                                                          column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
                                                          column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),
