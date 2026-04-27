@@ -161,9 +161,13 @@ ui <- tagList(
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
-                                                    p("Furthermore, by navigating to the outliers tab, the graphs show that there are several points that may be influencing the regression overall."),
+                                                    p("Furthermore, by navigating to the 'Outliers' tab, the graphs show that there are several points that may be influencing the regression overall."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_poisson_outliers_graph.png", height = "728px", width = "658px"),
+                                                    tags$hr(),
+                                                    p("Lastly, within the 'Plots' tab, there is a graph assessing zero inflation within the data, as shown below"),
+                                                    tags$img(src = "/images/ache_poisson_zinf_graph.png", height = "164px", width = "453px"),
+                                                    p("If the data has little to no zero-inflation, then the vertical red line should appear roughly centered in the histogram. However, in the case of the Ache Monkey Hunter data, this is not the case, indicating that the data likely suffers from zero inflation."),
                                                     p("Based on the earlier assumptions, it is a good idea to fit a Zero Inflated model instead. For the purposes of this example, the selected model will be changed to a 'Zero-Inflated Poisson' model.")
                                            ),
                                            # HTML('<center><img src="ex1-datasummary.png"></center>'),
@@ -186,7 +190,8 @@ ui <- tagList(
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_zip_anova_output.png", height = "300px", width = "570px"),
                                                     p("That said, in our interpretations, our output table shows tha Age is still not considered statistically discernible, whereas days is. As such, in this model, Days is a discernible indicator for number of kills."),
-                                                    tags$hr()
+                                                    tags$hr(),
+                                                    tags$img(src = "/images/ache_poisson_error_check.gif", height = "300px", width = "300px")
                                            )
                                            
                                            

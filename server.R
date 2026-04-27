@@ -2450,20 +2450,20 @@ server <- (function(input, output, session){
         })
         
         globalVars$Pearson_Residual <- tryCatch({
-       #   Pearson_Residual()
+          Pearson_Residual()
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the Pearson Plot.", type = "error")
           NULL
         })
         
         globalVars$ZeroInflated <- tryCatch({ # HAve to set up for ZIP and Tweezer whatever doesnt use it
-      #    ZeroInflated()
+         ZeroInflated()
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the ZeroInflated Plot.", type = "error")
           NULL
         })
         
-    #    globalVars$make_check_plot <- make_check_plot() #Checks Outliers crashing here
+        globalVars$make_check_plot <- make_check_plot() #Checks Outliers crashing here
         globalVars$make_anova_num <- make_anova_num()
         globalVars$make_model_summary <- make_model_summary()
 
