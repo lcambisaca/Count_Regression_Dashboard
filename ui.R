@@ -41,9 +41,9 @@ library(interactions)#for johnson neyman
 library(ggeffects)   #for marginal effects plots
 library(emmeans)     #for estimated marginal means
 library(car)         #for anova
-library(crayon)      #for removing style from Johnson Neyman output
+#library(crayon)      #for removing style from Johnson Neyman output
 library(effectsize)
-library(ggforce)
+#library(ggforce)
 library(pscl)
 library(DHARMa)
 library(tweedie)
@@ -136,7 +136,7 @@ ui <- tagList(
              tabPanel("Tutorial",
                       tabsetPanel(id = "Examples", # Basically creates a subset of tabs inside a page
                                   tabPanel("Example 1",
-                                           h1("Example 1: Poisson to Zero-Inflated", align = "center"), #Note, this needs revision. Please revisit when I(Age^2) works properly.
+                                           h1("Example 1", align = "center"),
                                            
                                            tags$div(class = "paragraph", tags$hr(),
                                                     p("Within this app, there is a provided dataset that contains a representative sample of n=47 Ache hunters by Micmillan et (2001). The researchers assessed the hunters' ages, the number of kills by each hunter, and the duration of each trek made by the hunters."),
@@ -180,26 +180,25 @@ ui <- tagList(
                                                     p("In the zero-inflated poisson model, there is now a second intercept value that serves as the logistic regression. This helps us account for the 'zero inflation', for lack of a better term. However, we can see that Age does not seem to be an important parameter."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_zip_asmp_graph.png", height = "600px", width = "700px"),
+                                                    p(""),
                                                     p("Our dataset still has many fitted values around 0, but the residuals are generally OK. Thus, the next tab to check is the ANOVA tab."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_zip_anova_output.png", height = "300px", width = "570px"),
+                                                    p(""),
                                                     p("That said, in our interpretations, our output table shows tha Age is still not considered statistically discernible, whereas days is. As such, in this model, Days is a discernible indicator for number of kills."),
                                                     tags$hr()
-                                          )
+                                           )
                                            
                                            
                                            
                                   ),
                                   tabPanel("Example 2",
-                                           h1("Example 2: Interactions in Negative Binomial", align = "center"),
+                                           h1("Example 2", align = "center"),
                                            tags$div(class = "paragraph", tags$hr(),
-                                                    p("Within this app, there is data included about blood samples obtained from healthy donors of both sexes, aged 25-45."),
-                                                    p("They infected the cells of primary (human donor’s blood) or THP1 (purchased cell lines) monocytes (n = 87 and n = 112, respectively) and macrophages (n = 93 and n = 170, respectively) and counted the number of viral genomes in the nuclei."),
-                                                    p("The goal is to determine if the virus is more prevalent in the nucleus of monocytes or machophages to explain HCMV's dormancy in monocytes and activity in macrophages."),
-                                                    tags$hr(),
-                                                    wellPanel(strong("viruses.within.nucleus ~ SampleType * CellType"))
-   
-                                          )
+                                                    tags$img(src = "Shaw.png", height = "250px", width = "125px"),
+                                                    tags$img(src = "/images/knight.png", height = "498px", width = "481px")
+                                                    
+                                           )
                                   )
                       ) # acts as a contained for multiple tabPanel()
              ),
@@ -209,13 +208,13 @@ ui <- tagList(
                         actionButton("sample", "Sample Data"),
                         hidden(div(id='choose_sample', #div is a box
                                    selectInput("sample_data_choice","Sample Data:",
-                                               choices = c("Camera Data", "Palmer Penguins", "Kitsberg et al. Nucleus" ,"U.S. News College Data", "Ache Monkey"),
+                                               choices = c("Camera Data", "Palmer Penguins", "Bracht et al. MFAP4" ,"U.S. News College Data", "Ache Monkey"),
                                                selected = "U.S. News College Data"))),
                         tags$hr(), #shaw shaw
                         div(id='choose_model',
-                                   selectInput("model_choice","Model:",
-                                               choices = c("Poisson", "Negative Binomial", "Quasi-Poisson", "Zero-Inflated Poisson", "Zero Inflated Negative Binomial", "Tweedie"),
-                                               selected = "Poisson")),
+                            selectInput("model_choice","Model:",
+                                        choices = c("Poisson", "Negative Binomial", "Quasi-Poisson", "Zero-Inflated Poisson", "Zero Inflated Negative Binomial", "Tweedie"),
+                                        selected = "Poisson")),
                         hidden(selectizeInput("select_factors",
                                               "Specify Categorical Variables in the Data:",
                                               choices = NULL,
@@ -224,7 +223,7 @@ ui <- tagList(
                         
                         textInput("equation", "Enter your desired regression equation:", value = ""),
                         #bsTooltip(id = "equation", title = "This is an input",
-                         #     placement = "right", trigger = "hover"),
+                        #     placement = "right", trigger = "hover"),
                         checkboxInput("scalevars", "Scale all variables (standardize)", FALSE), #need to see if user wabrs to scale and do so if yes need to implement
                         numericInput("alpha", "Significance level (\u03B1): ", value = 0.05, step = 0.001, min = 0, max = 1),     # alpha level need to adjust if user wants to
                         div(class = "text-center", actionButton("DoCompute", "Compute Model Output")), #DoCompute id for button
@@ -322,14 +321,14 @@ ui <- tagList(
                                                                 
                                                                 fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
                                                                 fluidRow(
-                                                                     column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
-                                                                     column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),
-                                                                     column(width=2, selectInput("RQR_plot_units", "Units", choices = c("in", "cm"))),
-                                                                     column(width=2, selectInput("RQR_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
-                                                                     column(width=2, downloadButton('downloadRQRPlot'),style = "margin-top: 25px;"), #
-                                                                     tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
+                                                                  column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
+                                                                  column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),
+                                                                  column(width=2, selectInput("RQR_plot_units", "Units", choices = c("in", "cm"))),
+                                                                  column(width=2, selectInput("RQR_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
+                                                                  column(width=2, downloadButton('downloadRQRPlot'),style = "margin-top: 25px;"), #
+                                                                  tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
                                                                 )
-                                                  
+                                                                
                                                          )
                                                        )
                                                        
@@ -374,7 +373,7 @@ ui <- tagList(
                                                        h3("Visualization"),
                                                        fluidRow(column(12, actionButton("code_RQR", "R code", icon("code")))),
                                                        br(),
-                                                       fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
+                                                       #fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
                                                        fluidRow(
                                                          column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
                                                          column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),
@@ -407,11 +406,11 @@ ui <- tagList(
                                                          column(width=2, downloadButton('downloadZeroInflated_Plot'),style = "margin-top: 25px;"), #
                                                          tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
                                                        ),
-
+                                                       
                                              )
                                              
-                      
-                                               
+                                             
+                                             
                                     ),
                                     tabPanel("ANOVA", value="anova",
                                              fluidPage(h1("ANOVA Table"), 
@@ -442,8 +441,8 @@ ui <- tagList(
                                                        ))
                                                        
                                                        
-                                                   
-                                              
+                                                       
+                                                       
                                                        
                                              )
                                     ),
@@ -542,9 +541,9 @@ ui <- tagList(
                                              )
                                     )
                                     
-                          )
+                        )
                         
-                     )
+                      )
                       
              ),
              tabPanel("Refrences"
@@ -554,9 +553,9 @@ ui <- tagList(
              
              
              
+        
              
-             
-  ) # End of navbarPage
+  ) 
   
   
 )
