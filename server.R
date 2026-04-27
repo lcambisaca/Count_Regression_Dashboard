@@ -4474,5 +4474,4 @@ observeEvent(input$code_anova_fctcomp, {
   )
 })
 
-
 })
