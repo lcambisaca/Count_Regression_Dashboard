@@ -648,7 +648,7 @@ server <- (function(input, output, session){
         }
         else if (mod_type == "Negative Binomial") {
           # Requires library(MASS)
-          quote(glmmTMB(formula, data = dat, family = nbinom2))
+          quote(MASS::glm.nb(formula, data = dat))
         } else if (mod_type == "Quasi-Poisson") {
           # Overdispersion adjustment
           quote(glm(formula, data = dat, family = quasipoisson(link = "log")))
@@ -2244,7 +2244,9 @@ server <- (function(input, output, session){
       if(run){
         # Try to fit model
         model <- tryCatch({
+        #  browser()
           
+          withCallingHandlers({
           
           choice <- globalVars$model_choice
           form <- globalVars$equation
@@ -2290,7 +2292,6 @@ server <- (function(input, output, session){
             
           }
             
-            
           if (choice %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")) {
             # Call for glmmTMB
             model$call <- substitute(
@@ -2319,9 +2320,17 @@ server <- (function(input, output, session){
           
           if(is.null(model$call$family)) model$call$family <- NULL
           
-          
-          
           model
+          },
+          warning = function(w) {
+            # 2. Check for the iteration warning specifically
+            if (grepl("iteration limit reached", w$message)) {
+              shinyalert("Warning", "Iteration limit reached. Results may be unstable.", type = "warning")
+              invokeRestart("muffleWarning") # MAGIC: This sends R back to finish the model!
+            }
+          })
+          
+          
         }, error = function(e){
           if (grepl(pattern = "could not find function", x = e, fixed = T)) {
             shinyalert("Error!", text = "One of your function names is spelled incorrectly!", type = 'error')
@@ -2345,7 +2354,6 @@ server <- (function(input, output, session){
           return(NULL)
           
         }, warning = function(w){
-          #
           # catch when user has a response as a predictor
           if(as.character(w)=="simpleWarning in model.matrix.default(mt, mf, contrasts): the response appeared on the right-hand side and was dropped\n"){
             # run <- FALSE
@@ -2356,9 +2364,11 @@ server <- (function(input, output, session){
           }else if(grepl(pattern = '<simpleError in model.frame.default(formula = (as.formula(globalVars$equation))', x = w, fixed = T)){
             # run <- FALSE
             shinyalert("Error!", text="You may have misspelled one of the variables. Please rewrite the regression equation.", type = "error")
-          }else{
+          }
+          else{
             # run <- FALSE
             shinyalert("Error!", text="(In Warninig) There was an unanticipated error in fitting your regression model. Please report the issue and/or try another regression equation.", type = "error")          }
+          
           return(NULL)
           
         })
@@ -4473,5 +4483,6 @@ observeEvent(input$code_anova_fctcomp, {
     clip=NULL
   )
 })
+
 
 })
