@@ -324,7 +324,7 @@ ui <- tagList(
                                     ),
                                     tabPanel("Assumptions", value="assumptions", #NOTE: Haven't gotten a chance to fix this yet. Trying to find viable solutions that aren't codebreaking, but the best course of action is to somehow make a copy of the existing table from the Plots tab and shift it over here somehow.
                                              fluidPage(h1("Assumptions for Regression"),
-                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab2")))),br(), #This is supposed to load stuff but isn't working
                                                        
                                                        fluidRow(
                                                          
@@ -368,7 +368,7 @@ ui <- tagList(
                                                          column(8, 
                                                                 fluidRow(column(12, actionButton("code_RQR", "R code", icon("code")))),
                                                                 
-                                                                fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
+                                                                fluidRow(column(12, shinycssloaders::withSpinner(plotOutput("RQR_plot2")))), # (NOTE PLOT) 7 This is how you render  plot in UI note we call it RQR_plot the same name we passed to output$RQR_plot in server
                                                                 fluidRow(
                                                                   column(width=2, textInput("RQR_plot_height", "Enter Height", value=7)),
                                                                   column(width=2, textInput("RQR_plot_width", "Enter Width", value=7)),
@@ -498,7 +498,7 @@ ui <- tagList(
                                     tabPanel("Interpretation", value="interpretation", #NOTE- there is something not loading here. Not sure what was supposed to be here.
                                              fluidPage(h1("Count Model"), 
                                                        fluidRow(column(12, actionButton("code_modsum", "R code", icon("code")), downloadButton('downloadmodsumLatex',label="LaTeX"))),br(),
-                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(),
+                                                       fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(), #found the thingy - this modsumTab is being problematic.
                                                        h1("Interpretation"),
                                                        htmlOutput("modelinterp"),
                                                        tags$head(tags$style("#clickGene{color:red; font-size:12px; font-style:italic;}")),

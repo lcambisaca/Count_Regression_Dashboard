@@ -2768,6 +2768,25 @@ server <- (function(input, output, session){
       ))
   ), rownames = FALSE)
   
+  output$modsumTab2 <- DT::renderDataTable({ # Where we named table Tom
+    globalVars$make_model_summary
+  },
+  extensions = 'Buttons',
+  options = list(
+    dom = 'Bfrtip',
+    buttons = 
+      list("copy", "print", list(
+        extend = "collection",
+        buttons = list(
+          list(extend="csv", filename="model-summary"),
+          list(extend="excel", filename="model-summary"),
+          list(extend="pdf", filename="model-summary")
+        ),
+        text = "Download",
+        filename = "model-summary"
+      ))
+  ), rownames = FALSE)
+  
   # Download button for summary (LaTeX version)----
   output$downloadmodsumLatex <- downloadHandler(
     filename = function() {
@@ -3444,6 +3463,11 @@ server <- (function(input, output, session){
   output$RQR_plot <- renderPlot({
       req(globalVars$RQRPlot) 
       globalVars$RQRPlot
+  })
+  
+  output$RQR_plot2 <- renderPlot({
+    req(globalVars$RQRPlot) 
+    globalVars$RQRPlot
   })
 
   output$check_plot <- renderPlot({
