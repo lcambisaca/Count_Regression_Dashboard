@@ -1437,7 +1437,7 @@ server <- (function(input, output, session){
       text <- ""
       for(i in 1:nrow(mod.emmeanscontrast)){
         adding.text <- paste("\U2022 The contrast of estimated marginal means of ", sub("\\.scaled$", "", response), " for", " (", gsub("\\.scaled", "", mod.emmeanscontrast$Contrast[i]),") is",
-                             ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " significant ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
+                             ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " statistically discernible ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
                              ", df = ", round(mod.emmeanscontrast[i,"df"]), ", p-value ", ifelse(mod.emmeanscontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ",round(mod.emmeanscontrast[i,"p-value"],4), sep="")),
                              "; 95% CI: ", round(mod.emmeanscontrast[i,"Lower CI"],2), ", ", round(mod.emmeanscontrast[i,"Upper CI"],2), ").",
                              sep="")
@@ -1448,7 +1448,7 @@ server <- (function(input, output, session){
       text <- ""
       for(i in 1:nrow(mod.emmeanscontrast)){
         adding.text <- paste("\U2022 The contrast of estimated marginal means of ", sub("\\.scaled$", "", response), " for", " (", gsub("\\.scaled", "", mod.emmeanscontrast$Contrast[i]),") is",
-                             ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " significant ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
+                             ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " statistically discernible ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
                              ", df = ", round(mod.emmeanscontrast[i,"df"]), ", p-value ", ifelse(mod.emmeanscontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ",round(mod.emmeanscontrast[i,"p-value"],4), sep="")),
                              "; 95% CI: ", round(mod.emmeanscontrast[i,"Lower CI"],2), ", ", round(mod.emmeanscontrast[i,"Upper CI"],2), ").",
                              sep="")
@@ -1460,7 +1460,7 @@ server <- (function(input, output, session){
         text <- ""
         for(i in 1:nrow(mod.emmeanscontrast)){
           adding.text <- paste("\U2022 The contrast of estimated marginal means of ", sub("\\.scaled$", "", response), " for", " (", gsub("\\.scaled", "", as.character(mod.emmeanscontrast$Contrast[i])),") when (", int.var, " = ", mod.emmeanscontrast[i,int.var], ") is",
-                               ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " significant ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
+                               ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " statistically discernible ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
                                ", df = ", round(mod.emmeanscontrast[i,"df"]), ", p-value ", ifelse(mod.emmeanscontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ",round(mod.emmeanscontrast[i,"p-value"],4), sep="")),
                                "; 95% CI: ", round(mod.emmeanscontrast[i,"Lower CI"],2), ", ", round(mod.emmeanscontrast[i,"Upper CI"],2), ").",
                                sep="")
@@ -1471,7 +1471,7 @@ server <- (function(input, output, session){
         text <- ""
         for(i in 1:nrow(mod.emmeanscontrast)){
           adding.text <- paste("\U2022 The contrast of estimated marginal means of ", sub("\\.scaled$", "", response), " for", " (", gsub("\\.scaled", "", mod.emmeanscontrast$Contrast[i]),") is",
-                               ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " significant ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
+                               ifelse(mod.emmeanscontrast[i,"p-value"]<alpha, " statistically discernible ", " not significant "), "(t = ", round(mod.emmeanscontrast[i,"z ratio"],2),
                                ", df = ", round(mod.emmeanscontrast[i,"df"]), ", p-value ", ifelse(mod.emmeanscontrast[i,"p-value"]<0.0001,"< 0.0001", paste("= ",round(mod.emmeanscontrast[i,"p-value"],4), sep="")),
                                "; 95% CI: ", round(mod.emmeanscontrast[i,"Lower CI"],2), ", ", round(mod.emmeanscontrast[i,"Upper CI"],2), ").",
                                sep="")
@@ -1645,14 +1645,14 @@ server <- (function(input, output, session){
     emtrends.interp<-""
     for(i in 1:nrow(mod.emtrends)){
       if(class(mod.emtrends[,1])=="factor" | class(mod.emtrends[,1])=="character"){
-        emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrends[i,"p-value"]<alpha, "significant ", "not significant "),
+        emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrends[i,"p-value"]<alpha, "statistically discernible ", "not significant "),
                                  "when ", gsub("\\.scaled", "", (moderator)), " is ", mod.emtrends[i,1],
                                  " (Slope = ", round(mod.emtrends[i,2],4),
                                  ", z ratio = ", round(mod.emtrends[i,"z ratio"],4),
                                  ", p-value ",  ifelse(mod.emtrends[i,"p-value"]<0.0001,"< 0.0001", paste("= ", round(mod.emtrends[i,"p-value"],4), sep="")), ").<br/>",
                                  sep="")
       }else{
-        emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrends[i,"p-value"]<alpha, "significant ", "not significant "),
+        emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrends[i,"p-value"]<alpha, "statistically discernible ", "not significant "),
                                  "when ", gsub("\\.scaled", "", (moderator)), " is ", round(mod.emtrends[i,1],4),
                                  " (Slope = ", round(mod.emtrends[i,2],4),
                                  ", z ratio = ", round(mod.emtrends[i,"z ratio"],4),
@@ -1849,7 +1849,7 @@ server <- (function(input, output, session){
     
     emtrends.interp<-""
     for(i in 1:nrow(mod.emtrendcontrast)){
-      emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrendcontrast[i,"p-value"]<alpha, "significantly ", "not significantly "),
+      emtrends.interp <- paste(emtrends.interp,"\U2022 The effect of ", gsub("\\.scaled", "", (int.var)),  " is ", ifelse(mod.emtrendcontrast[i,"p-value"]<alpha, "statistically discernibly ", "not significantly "),
                                "different by ", gsub("\\.scaled", "", (moderator)), 
                                " (Contrast = ", mod.emtrendcontrast[i,"Contrast"],
                                ", Estimate = ", round(mod.emtrendcontrast[i,"Estimate"],4),
@@ -2818,7 +2818,7 @@ server <- (function(input, output, session){
       
       firstPart <- paste(
         "\U2022 The model ",
-        ifelse(p_val_global < alpha, "significantly predicts ", "does not significantly predict "),
+        ifelse(p_val_global < alpha, "statistically discernibly predicts ", "does not significantly predict "),
         "the response (Chi-square = ", round(LR_stat, 4),
         ", df = ", df_diff,
         ", p-value ", ifelse(p_val_global < 0.0001, " < 0.0001", paste(" =", round(p_val_global, 4))),
@@ -2842,7 +2842,7 @@ server <- (function(input, output, session){
     
     firstPart <- paste(
       "\U2022 The model ",
-      ifelse(p_val_global < alpha, "significantly predicts ", "does not significantly predict "),
+      ifelse(p_val_global < alpha, "statistically discernibly predicts ", "does not significantly predict "),
       "the response (Chi-square = ", round(diff_deviance, 4),
       ", df = ", df_diff,
       ", p-value ", ifelse(p_val_global < 0.0001, " < 0.0001", paste(" =", round(p_val_global, 4))),
@@ -2913,7 +2913,7 @@ server <- (function(input, output, session){
         }
       }else{
         for(i in ind){
-          secondPart <- (paste(secondPart, "\U2022 The interactive effect of ", gsub("\\.scaled", "", mod.table$Term[i]), " is ", ifelse(mod.table$`p-value`[i]<alpha, "significant ", "not significant "),
+          secondPart <- (paste(secondPart, "\U2022 The interactive effect of ", gsub("\\.scaled", "", mod.table$Term[i]), " is ", ifelse(mod.table$`p-value`[i]<alpha, "statistically discernible ", "not significant "),
                                "(", "\U03B2 = ", round(mod.table$Estimate[i],4),
                                ", z = ",  round(mod.table$z[i],4),
                                ", p-value ",  ifelse(mod.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(mod.table$`p-value`[i],4), sep="")), ").<br/>",
@@ -2965,7 +2965,7 @@ server <- (function(input, output, session){
         }
       }else{
         for(i in ind){
-          secondPart <- (paste(secondPart, "\U2022 The interactive effect of ", gsub("\\.scaled", "", mod.table$Term[i]), " is ", ifelse(mod.table$`p-value`[i]<alpha, "significant ", "not significant "),
+          secondPart <- (paste(secondPart, "\U2022 The interactive effect of ", gsub("\\.scaled", "", mod.table$Term[i]), " is ", ifelse(mod.table$`p-value`[i]<alpha, "statistically discernible ", "not significant "),
                                "(", "\U03B2 = ", round(mod.table$Estimate[i],4),
                                ", z = ",  round(mod.table$z[i],4),
                                ", p-value ",  ifelse(mod.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(mod.table$`p-value`[i],4), sep="")), ").<br/>",
@@ -4260,14 +4260,14 @@ prepare_anova_interp <- function(){
     }
 
     else if(!grepl(x=anova.table$Term[i], pattern=":")){ #HERE
-      anova.interp <- (paste(anova.interp,"\U2022 The effect of ", sub("\\.scaled$", "", anova.table$Term[i]), " is ", ifelse(anova.table$`p-value`[i]<alpha, "significant ", "not significant "),
+      anova.interp <- (paste(anova.interp,"\U2022 The effect of ", sub("\\.scaled$", "", anova.table$Term[i]), " is ", ifelse(anova.table$`p-value`[i]<alpha, "statistically discernible ", "not significant "),
                              "(LR Chisq (Deviance) = ",  round(anova.table$`LR Chisq (Deviance)`[i],4),
                              ", p-value ",  ifelse(anova.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova.table$`p-value`[i],4), sep="")), ").",
                              ifelse(!is.na(anova.table[["Partial McFadden R2"]][i]),
                                     paste(" The effect size is ", round(anova.table[["Partial McFadden R2"]][i], 3), ", which indicates that the effect is ", anova.table$e2.text[i], sep=""), ""),
                              "<br/>", sep=""))
     }else{
-      anova.interp <- (paste(anova.interp,"\U2022 The interactive effect of ", gsub("\\.scaled", "", anova.table$Term[i]), " is ", ifelse(anova.table$`p-value`[i]<alpha, "significant ", "not significant "),
+      anova.interp <- (paste(anova.interp,"\U2022 The interactive effect of ", gsub("\\.scaled", "", anova.table$Term[i]), " is ", ifelse(anova.table$`p-value`[i]<alpha, "statistically discernible ", "not significant "),
                              "(LR Chisq (Deviance) = ", round(anova.table$`LR Chisq (Deviance)`[i],4),
                              ", p-value ",  ifelse(anova.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova.table$`p-value`[i],4), sep="")), ").",
                              ifelse(!is.na(anova.table[["Partial McFadden R2"]][i]),
@@ -4397,7 +4397,7 @@ prepare_anova_fctcompinterp <- function(){ # PROLLY ISSUES
   
   anova.interp <- NULL
   for(i in 1:(nrow(anova_fctcomp.table))){
-    anova.interp <- (paste(anova.interp,"\U2022 The contrast of (", anova_fctcomp.table$Contrast[i], ") is ", ifelse(anova_fctcomp.table$`p-value`[i]<alpha, "significant ", "not significant "),
+    anova.interp <- (paste(anova.interp,"\U2022 The contrast of (", anova_fctcomp.table$Contrast[i], ") is ", ifelse(anova_fctcomp.table$`p-value`[i]<alpha, "statistically discernible ", "not significant "),
                            "(z = ",  round(anova_fctcomp.table$z[i],2),
                            ", p-value ",  ifelse(anova_fctcomp.table$`p-value`[i]<0.0001,"< 0.0001", paste("= ", round(anova_fctcomp.table$`p-value`[i],4), sep="")), 
                            ", 95% CI: ", round(anova_fctcomp.table$`Lower CI`[i],4), ",", round(anova_fctcomp.table$`Upper CI`[i], 4), ").",

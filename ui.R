@@ -216,8 +216,35 @@ ui <- tagList(
                                                     p("From here, the plots can now be analyzed. The first plot is the RQR and QQ plots in the 'Assumptions' tab."),
                                                     tags$img(src = "/images/kitsberg_nb_asmp_graph.png", height = "321px", width = "542px"),
                                                     p("The RQR doesn't indicate any uneven or imbalanced distribution of our residuals. Furthermore, the QQ plot indicates that a Negative Binomial is fitting, as the dispersion ratio suggests that the observed and estimated variances are very near one another."),
-                                                    p("Meanwhile, our table suggests _______________ (NOTE: ADD TABLE ONCE COLLISION IS RESOLVED)")
+                                                    p("Meanwhile, our table suggests _______________ (NOTE: ADD TABLE ONCE COLLISION IS RESOLVED)"),
+                                                    p("On the 'Plots' tab, unlike 'Example 1', there is little to no zero inflation in this data. As such, it is permissible to proceed without a zero-inflated model."),
+                                                    tags$img(src = "/images/kitsberg_nb_zinf_graph.png", height = "332px", width = "551px"),
+                                                    p("Thus, the next step is to tune the interaction analysis. In the sidebar panel, there is a new section that appeared after 'Compute Model Output' was pressed. For this example, the selected interaction is 'SampleType:CellType' and the selected moderator is 'SampleType'."),
+                                                    p("From here, the 'Interaction' tab becomes visible. By navigating to this tab, various information about the interaction term and its significance can be displayed."),
+                                                    tags$hr()
+                                                    
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("First, a visualization by group is displayed. For this dataset, the two categories within 'SampleType' are separated, as shown below."),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_graph.png", height = "390px", width="558px"),
+                                                    p("Based on this graph, both cell types seem to be fairly even, but mac samples tend to have higher predicted viruses within the nucleus than those of mono samples. By scrolling down, more information is provided about the estimated marginal means."),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_emmeans_table.png", height = "337px", width = "583px"),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_emmeans_interpretation.png", height = "277px", width = "565px"),
+                                                    p("Both the values and the significance interpration is presented as part of the interaction tab. From this, the differences between the levels or categories can be numerically visualized."),
+                                                    p("For this app, it should be noted that values are calculated at average levels for the other non-interaction terms in the model. While this can be remedied and calculated at specific levels in R, it is not supported in this app at this time."),
+                                                    p("Further down, there is also contrasted estimated marginal means with a Tukey Adjustment"),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_contrast_table.png", height = "505px", width = "571px"),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_contrast_interpretation.png", height = "266px", width = "575px"),
+                                                    p("From these, it can be determined which groups have a statistically discernible difference from one another, and which groups are relatively similar to one another as well. In this instance, the report shows that mac primary and mono primary are different from one another, while mono primary and mono THP1 are not."),
+                                                    p("By analyzing these, it is possible to group the pairs; the resulting groups would be divided by Mac and Mono in this instance."),
+                                                    tags$hr()
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("Lastly, turning to the 'ANOVA' tab, the table shows the p-values, deviance, and partial McFadden's R. Additionally, there are more interpretations below."),
+                                                    tags$img(src = "/images/kitsberg_nb_anova_table.png", height = "360px",  width = "686px"),
+                                                    p("The table and interpretations indicate that the only statistically discernible term is the Cell Type, which lines up with the findings from the Interaction tab.")
                                                     )
+          
                                           
                                   )
                       ) # acts as a contained for multiple tabPanel()
@@ -295,7 +322,7 @@ ui <- tagList(
                                                ),
                                                tags$hr())
                                     ),
-                                    tabPanel("Assumptions", value="assumptions",
+                                    tabPanel("Assumptions", value="assumptions", #NOTE: Haven't gotten a chance to fix this yet. Trying to find viable solutions that aren't codebreaking, but the best course of action is to somehow make a copy of the existing table from the Plots tab and shift it over here somehow.
                                              fluidPage(h1("Assumptions for Regression"),
                                                        fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(),
                                                        
@@ -468,7 +495,7 @@ ui <- tagList(
                                                        
                                              )
                                     ),
-                                    tabPanel("Interpretation", value="interpretation",
+                                    tabPanel("Interpretation", value="interpretation", #NOTE- there is something not loading here. Not sure what was supposed to be here.
                                              fluidPage(h1("Count Model"), 
                                                        fluidRow(column(12, actionButton("code_modsum", "R code", icon("code")), downloadButton('downloadmodsumLatex',label="LaTeX"))),br(),
                                                        fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("modsumTab")))),br(),
