@@ -2450,22 +2450,19 @@ server <- (function(input, output, session){
         })
         
         globalVars$Pearson_Residual <- tryCatch({
-<<<<<<< HEAD
+
           Pearson_Residual()
-=======
-           Pearson_Residual()
->>>>>>> refs/remotes/origin/main
+
+
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the Pearson Plot.", type = "error")
           NULL
         })
         
         globalVars$ZeroInflated <- tryCatch({ # HAve to set up for ZIP and Tweezer whatever doesnt use it
-<<<<<<< HEAD
+
          ZeroInflated()
-=======
-           ZeroInflated()
->>>>>>> refs/remotes/origin/main
+
         }, error = function(e) {
           shinyalert("Error!", text = "There was an issue making the ZeroInflated Plot.", type = "error")
           NULL

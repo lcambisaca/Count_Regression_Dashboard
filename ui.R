@@ -189,7 +189,7 @@ ui <- tagList(
                                                     p("Our dataset still has many fitted values around 0, but the residuals are generally OK. Thus, the next tab to check is the ANOVA tab."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_zip_anova_output.png", height = "300px", width = "570px"),
-                                                    p("That said, in our interpretations, our output table shows tha Age is still not considered statistically discernible, whereas days is. As such, in this model, Days is a discernible indicator for number of kills."),
+                                                    p("That said, in our interpretations, our output table shows that Age is still not considered statistically discernible, whereas days is. As such, in this model, Days is a discernible indicator for number of kills."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_poisson_error_check.gif", height = "300px", width = "300px")
                                            )
@@ -201,17 +201,30 @@ ui <- tagList(
                                            h1("Example 2: Interactions in Negative Binomial", align = "center"),
                                            tags$div(class = "paragraph", tags$hr(),
                                                     p("Within this app, there is data included about blood samples obtained from healthy donors of both sexes, aged 25-45."),
-                                                    p("They infected the cells of primary (human donor’s blood) or THP1 (purchased cell lines) monocytes (n = 87 and n = 112, respectively) and macrophages (n = 93 and n = 170, respectively) and counted the number of viral genomes in the nuclei."),
+                                                    p("They infected the cells ohsr f primary (human donor’s blood) or THP1 (purchased cell lines) monocytes (n = 87 and n = 112, respectively) and macrophages (n = 93 and n = 170, respectively) and counted the number of viral genomes in the nuclei."),
                                                     p("The goal is to determine if the virus is more prevalent in the nucleus of monocytes or machophages to explain HCMV's dormancy in monocytes and activity in macrophages."),
                                                     tags$hr(),
                                                     wellPanel(strong("viruses.within.nucleus ~ SampleType * CellType"))
                                                     
-                                           )
+                                           ),
+                                           tags$div(class = 'paragraph', tags$hr(),
+                                                    p("By including the '*' in our regression equation, the model is instructed to construct both individual and interaction terms. As such, the true regression equation would be as follows:"),
+                                                    wellPanel(strong("virses.within.nucleus ~ SampleType + CellType + SampleType:CellType")),
+                                                    tags$hr()
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("From here, the plots can now be analyzed. The first plot is the RQR and QQ plots in the 'Assumptions' tab."),
+                                                    tags$img(src = "/images/kitsberg_nb_asmp_graph.png", height = "321px", width = "542px"),
+                                                    p("The RQR doesn't indicate any uneven or imbalanced distribution of our residuals. Furthermore, the QQ plot indicates that a Negative Binomial is fitting, as the dispersion ratio suggests that the observed and estimated variances are very near one another."),
+                                                    p("Meanwhile, our table suggests _______________ (NOTE: ADD TABLE ONCE COLLISION IS RESOLVED)")
+                                                    )
+                                          
                                   )
                       ) # acts as a contained for multiple tabPanel()
              ),
              tabPanel("Dataset & Model",
                       sidebarPanel( # Handels Data and settings
+                        #h3("Model Creation"),
                         fileInput("file_upload", "Upload a File", accept=c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
                         actionButton("sample", "Sample Data"),
                         hidden(div(id='choose_sample', #div is a box
@@ -234,7 +247,7 @@ ui <- tagList(
                         #     placement = "right", trigger = "hover"),
                         checkboxInput("scalevars", "Scale all variables (standardize)", FALSE), #need to see if user wabrs to scale and do so if yes need to implement
                         numericInput("alpha", "Significance level (\u03B1): ", value = 0.05, step = 0.001, min = 0, max = 1),     # alpha level need to adjust if user wants to
-                        div(class = "text-center", actionButton("DoCompute", "Compute Model Output")), #DoCompute id for button
+                        
                         div(h3("Interaction Analysis:"), id="interaction_analysis"),
                         selectizeInput("var_inter",
                                        "Select Interaction",
@@ -248,6 +261,7 @@ ui <- tagList(
                                        selected = "Select...",
                                        multiple = FALSE),
                         hidden(checkboxInput("interaction.error", "Error Ribbon for Interaction", TRUE)),
+                        div(class = "text-center", actionButton("DoCompute", "Compute Model Output")), #DoCompute id for button
                         
                         
                         
