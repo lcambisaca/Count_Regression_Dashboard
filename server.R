@@ -734,7 +734,6 @@ server <- (function(input, output, session){
       hideTab(inputId="workPanel", target="interaction")   
     }else{
       showModal(modalDialog("Things are happening in the background!", footer=NULL))
-      #browser()
       globalVars$emmeans <- prepare_interaction_emmeans() # Good
       globalVars$mod.emmeanscontrast <- prepare_interaction_emmeanscontrasts() # Good
       globalVars$mod.emtrends <- prepare_interaction_emtrends()
@@ -2244,8 +2243,6 @@ server <- (function(input, output, session){
       if(run){
         # Try to fit model
         model <- tryCatch({
-        #  browser()
-          
           withCallingHandlers({
           
           choice <- globalVars$model_choice
@@ -2460,7 +2457,6 @@ server <- (function(input, output, session){
         })
         
         globalVars$ZeroInflated <- tryCatch({ # HAve to set up for ZIP and Tweezer whatever doesnt use it
-
          ZeroInflated()
 
         }, error = function(e) {
@@ -3183,7 +3179,7 @@ server <- (function(input, output, session){
     dat <- globalVars$dataset
     model <- globalVars$model
     mod_type <- globalVars$model_choice
-    
+
 
     
     if(mod_type == "Zero Inflated Negative Binomial" || mod_type == "Zero-Inflated Poisson"){
@@ -3224,13 +3220,33 @@ server <- (function(input, output, session){
     }
     else{
       metaExpr({
-        # response
         obs_zeros <- sum(model$y == 0)
         
         numZeros <-rep(NA,1000)
         
-        for (i in 1:1000){
-          numZeros[i] <- sum(simulate(model) == 0)
+        if(mod_type == "Tweedie"){
+          
+          for (i in 1:1000){
+            mu <- predict(model, type = "response")
+            p <- 1.5
+            phi <- summary(model)$dispersion
+            numZeros[i] <- sum(rtweedie(n = length(mu), mu = mu, phi = phi, power = p) == 0)
+          }
+         
+          
+        }
+        else if( mod_type == "Quasi-Poisson"){
+          for (i in 1:1000){
+            mu <- predict(model, type = "response")
+            numZeros[i] <- sum(rpois(n = length(mu), lambda = mu) == 0)
+          }
+          
+          
+        }
+        else{
+          for (i in 1:1000){
+            numZeros[i] <- sum(simulate(model) == 0)
+          }
         }
         
         mean(numZeros <= obs_zeros)
@@ -4353,8 +4369,6 @@ prepare_anova_fctcomp <- metaReactive2({
 make_anovafctcomp_plot <- metaReactive2({
   req(globalVars$anova)
   anova_fctcomp.table <- globalVars$anova_fctcomp
- # browser()
-  
   
   if(length(unique(anova_fctcomp.table$Variable))==1){
     metaExpr({
