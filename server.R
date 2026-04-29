@@ -1998,54 +1998,6 @@ server <- (function(input, output, session){
     }
   )
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   #############################################################################################
   # When a new sample selected
   #############################################################################################
@@ -2160,18 +2112,26 @@ server <- (function(input, output, session){
     run <- TRUE
     dat <- globalVars$dataset
     
+    browser()
+    
+    
     
     if (run & grepl("~", input$equation)) {
+      # Genius IDEA
       subbed <- str_replace_all(input$equation,fixed("+"),"~")
       subbed <- str_replace_all(subbed,fixed("*"),"~")
       subbed <- str_replace_all(subbed,fixed(":"),"~")
       subbed <- str_replace_all(subbed,fixed("|"),"~")
+      
+      # Note will have to fix minor things cry
       
       while(grepl("[a-zA-Z0-9._]+\\(", subbed)) { 
         # 1. Remove the function name and the opening '('
         # 2. Remove the matching ')' and any trailing power like '^2'
         subbed <- gsub("[a-zA-Z0-9._]+\\(([^)]+)\\)(\\^\\d+)?", "\\1", subbed, perl = TRUE)
       } #Will not work for complex function like poly(x,2) or  I((a + b) * c)
+      
+      
       
       variables <- trimws(str_split(string = subbed, pattern = "~", simplify = T))
       
@@ -2244,10 +2204,12 @@ server <- (function(input, output, session){
         # Try to fit model
         model <- tryCatch({
           withCallingHandlers({
+            
           
           choice <- globalVars$model_choice
           form <- globalVars$equation
           dat <- globalVars$dataset
+          
           
           model <- switch(choice,
                         "Poisson" = glm(form, data = dat, family = poisson(link = "log")),
@@ -2361,10 +2323,12 @@ server <- (function(input, output, session){
           }else if(grepl(pattern = '<simpleError in model.frame.default(formula = (as.formula(globalVars$equation))', x = w, fixed = T)){
             # run <- FALSE
             shinyalert("Error!", text="You may have misspelled one of the variables. Please rewrite the regression equation.", type = "error")
-          }
-          else{
+          }else if(grepl(pattern = "alternation limit reached", x = w, fixed = T)){
+            shinyalert("Error!", text="The Negative Binomial model reached its iteration limit without converging. Please try another regression equation.", type = "error")    
+          }else{
             # run <- FALSE
-            shinyalert("Error!", text="(In Warninig) There was an unanticipated error in fitting your regression model. Please report the issue and/or try another regression equation.", type = "error")          }
+            shinyalert("Error!", text="(In Warninig) There was an unanticipated error in fitting your regression model. Please report the issue and/or try another regression equation.", type = "error")         
+            }
           
           return(NULL)
           
@@ -2407,7 +2371,6 @@ server <- (function(input, output, session){
       
       if(run){ # NOTE THIS IS WHERE ALL PLOTS AND THINGS HAPPEN
         showModal(modalDialog("Things are happening in the background!", footer=NULL))
-        
         globalVars$model <- model
         globalVars$modelsummary <- prepare_model_summary() 
         globalVars$prepare_model_interp <- prepare_model_interp()
@@ -2424,7 +2387,6 @@ server <- (function(input, output, session){
         }
         ### Show factor outputs, if necessary
         if(length(fct.vars)>=1){
-          
           globalVars$anova_fctcomp <- prepare_anova_fctcomp()
           globalVars$make_anovafctcomp_plot <- make_anovafctcomp_plot()
           globalVars$make_anovafctcomp_num <- make_anovafctcomp_num()
