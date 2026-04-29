@@ -1,5 +1,6 @@
 library(Hmisc)      #correlations and tests (still here, here due to overriding summarize)
 # viruses.within.nucleus ~ CellType * SampleType
+# TOTEXP23 ~ AGELAST + SEX + DIABDX_M18 + HIBPDX + OBTOTV23 + ERTOT23
 ##########################################
 # Shiny
 ##########################################
