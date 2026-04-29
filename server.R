@@ -127,8 +127,10 @@ server <- (function(input, output, session){
         stop(safeError(e))
       }
     )
-    globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
-      mutate_if(is.integer,as.numeric)
+    globalVars$dataset <- dat %>% 
+      mutate_if(is.character, as.factor) %>%
+      mutate_if(is.integer, as.numeric) %>%
+      tidyr::drop_na()
     
     globalVars$dataset.original <- globalVars$dataset
     
