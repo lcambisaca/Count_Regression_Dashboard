@@ -386,7 +386,13 @@ ui <- tagList(
                                                                   column(width=2, selectInput("RQR_plot_format", "Format", choices = c("png", "pdf", "tiff", "bmp"))),
                                                                   column(width=2, downloadButton('downloadRQRPlot'),style = "margin-top: 25px;"), #
                                                                   tags$head(tags$style(HTML(".selectize-input {height: 42px;}")))
-                                                                )
+                                                                ),
+                                                                br(),
+                                                                hidden(div(id='vifdiv',
+                                                                           fluidRow(column(12, actionButton("code_vif", "R code", icon("code")), downloadButton('downloadvifLatex',label="LaTeX"))),br(),
+                                                                           fluidRow(column(12, shinycssloaders::withSpinner(DT::dataTableOutput("vifTab")))),br()
+                                                                )),
+                                                                
                                                                 
                                                          )
                                                        )

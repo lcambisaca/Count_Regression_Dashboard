@@ -950,7 +950,6 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      prepare_transformed_data(),
       prepare_scaled_data(),
       fitmodel(),
       ggemmeansplot()
@@ -1125,7 +1124,6 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      prepare_transformed_data(),
       prepare_scaled_data(),
       fitmodel(),
       prepare_interaction_emmeans(),
@@ -1388,7 +1386,6 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      prepare_transformed_data(),
       prepare_scaled_data(),
       fitmodel(),
       prepare_interaction_emmeanscontrasts(),
@@ -1608,7 +1605,6 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      prepare_transformed_data(),
       prepare_scaled_data(),
       fitmodel(),
       prepare_interaction_emtrends(),
@@ -1814,7 +1810,6 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      prepare_transformed_data(),
       prepare_scaled_data(),
       fitmodel(),
       prepare_interaction_emtcontrast(),
@@ -1931,7 +1926,6 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      prepare_transformed_data(),
       prepare_scaled_data(),
       fitmodel(),
       jnplot()
@@ -2274,7 +2268,6 @@ server <- (function(input, output, session){
           }
           
           if(is.null(model$call$family)) model$call$family <- NULL
-          
           model
           },
           warning = function(w) {
@@ -2282,6 +2275,12 @@ server <- (function(input, output, session){
             if (grepl("iteration limit reached", w$message)) {
               shinyalert("Warning", "Iteration limit reached. Results may be unstable.", type = "warning")
               invokeRestart("muffleWarning") # MAGIC: This sends R back to finish the model!
+            }
+            
+            else if(grepl(pattern = "alternation limit reached", x = w, fixed = T)){
+              shinyalert("Warning", text="The Negative Binomial model reached its iteration limit without converging. Please try another regression equation.", type = "warning")   
+              invokeRestart("muffleWarning") # MAGIC: This sends R back to finish the model!
+              
             }
           })
           
@@ -2319,8 +2318,6 @@ server <- (function(input, output, session){
           }else if(grepl(pattern = '<simpleError in model.frame.default(formula = (as.formula(globalVars$equation))', x = w, fixed = T)){
             # run <- FALSE
             shinyalert("Error!", text="You may have misspelled one of the variables. Please rewrite the regression equation.", type = "error")
-          }else if(grepl(pattern = "alternation limit reached", x = w, fixed = T)){
-            shinyalert("Error!", text="The Negative Binomial model reached its iteration limit without converging. Please try another regression equation.", type = "error")    
           }else{
             # run <- FALSE
             shinyalert("Error!", text="(In Warninig) There was an unanticipated error in fitting your regression model. Please report the issue and/or try another regression equation.", type = "error")         
@@ -2374,6 +2371,7 @@ server <- (function(input, output, session){
         globalVars$anova <- prepare_anova()
         globalVars$prepare_anova_interp <- prepare_anova_interp()
         
+        
         if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
           all_vars <- all.vars(formula(model))
           fct.vars <- all_vars[sapply(dat[all_vars], is.factor)]
@@ -2421,6 +2419,18 @@ server <- (function(input, output, session){
           shinyalert("Error!", text = "There was an issue making the ZeroInflated Plot.", type = "error")
           NULL
         })
+        
+        all_vars <- all.vars(formula(model))
+        len <- length(all_vars) - 1
+        
+
+        if(len >= 2){
+          globalVars$make_vif_num <- make_vif_num()  
+        }
+        else{
+          shinyjs::hide("vifdiv")
+        }
+        
         
         globalVars$make_check_plot <- make_check_plot() #Checks Outliers crashing here
         globalVars$make_anova_num <- make_anova_num()
@@ -3053,7 +3063,6 @@ server <- (function(input, output, session){
       "####################################",
       read_data(),
       refactor_data(),
-      prepare_transformed_data(),
       prepare_scaled_data(),
       fitmodel(),
       prepare_model_margins(),
@@ -3509,48 +3518,73 @@ options = list(
 
 make_vif_num <- metaReactive2({
   req(globalVars$model)
-  model<-globalVars$model
+  model <- globalVars$model
   choice <- globalVars$model_choice
+  dat <- globalVars$dataset
+  #cam_count ~ pnhwht + city | modal_zone
+ # browser()
+
+  if (choice %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")) {
+    term_count <- length(all.vars(formula(model))) - 1 
+    count_formula <- formula(model, lhs=1, rhs=1)
+    vif_model <- glm(count_formula, data = dat, family = poisson)
+  }else {
+    term_count <- length(attr(terms(model), "term.labels"))
+    vif_model <- model 
+  }
   
-  if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
-    all_vars <- all.vars(formula(model))
+  variables <- all.vars(formula(model))
+  
+  is_categorical <- FALSE
+  
+  # Check Categorical Levels
+  for (i in 2:length(variables)) {
+    var_name <- variables[i]
+    column_data <- dat[[var_name]]
+    if (!is.numeric(column_data)) {
+      is_categorical <- TRUE
+      break
+    }
   }
-  else{
-    all_vars <- model$terms
-  }
-    
-  # Note come Back to set up VIF
-  if(length(attr(all_vars, "term.labels"))>=2){
+  
+  if(term_count >= 2){
     shinyjs::show("vifdiv")
+
+    vif_structure <- tryCatch(car::vif(vif_model), error = function(e) NULL)
     
-    model.vif <- vif(model)
+   
     
-    if(is.null(nrow(model.vif))){
+    
+    if(!is.null(vif_structure) && !is_categorical && is.null(nrow(vif_structure))) {
+      # Case: Standard VIF (No categorical variables with >1 Df)
       metaExpr({
         "####################################"
         "# Compute VIF"
         "####################################"
-        model.vif <- vif(model)
-        model.vif <- tibble(Terms = names(model.vif),
-                            VIF   = model.vif) %>%
-          mutate_if(is.numeric, round, 4)
+        model.vif <- car::vif(vif_model)
+        model.vif <- tibble::tibble(Terms = names(model.vif),
+                                    VIF = model.vif) %>%
+          dplyr::mutate_if(is.numeric, round, 4)
       })
-    }else{
+    } else if (!is.null(vif_structure)) {
+      # Case: GVIF (Includes categorical variables like 'EPAregion')
       metaExpr({
         "####################################"
         "# Compute GVIF"
         "####################################"
-        model.vif <- vif(model)
-        model.vif <- tibble(Terms = rownames(model.vif),
-                            `Adjusted GVIF`   = model.vif[,3])%>%
-          mutate_if(is.numeric, round, 4)
+        model.vif <- car::vif(vif_model)
+   
+        model.vif <- as.data.frame(model.vif) %>%
+          mutate(Term = rownames(.)) %>%
+          relocate(Term) %>%
+          set_rownames(NULL)
       }) 
     }
-  }else{
+  } else {
     shinyjs::hide("vifdiv")
+    return(NULL)
   }
 }, inline=TRUE)
-
 # Download button for summary (LaTeX version)----
 output$downloadvifLatex <- downloadHandler(
   filename = function() {
@@ -3576,7 +3610,6 @@ observeEvent(input$code_vif, {
     "####################################",
     read_data(),
     refactor_data(),
-    prepare_transformed_data(),
     prepare_scaled_data(),
     fitmodel(),
     make_vif_num()
@@ -4289,7 +4322,6 @@ prepare_anova_fctcomp <- metaReactive2({
 
   
   metaExpr({
-    # Note ask cipolli if we care about the zero side of model to or leave it as it as is
     if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
       all_vars <- all.vars(formula(model))
       fct.vars <- all_vars[sapply(dat[all_vars], is.factor)]
