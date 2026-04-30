@@ -241,7 +241,43 @@ server <- (function(input, output, session){
   #############################################################################################
   # Helper functions
   #############################################################################################
-  # convert scientific notation to 10^
+  dznbinom <- function(y, mu, theta, pi) {
+    probs <- numeric(length(y))
+    probs[y == 0] <- pi[y == 0] + (1 - pi[y == 0]) * (theta / (mu[y == 0] + theta))^theta
+    probs[y > 0] <- (1 - pi[y > 0]) * dnbinom(y[y > 0], size = theta, mu = mu[y > 0])
+    return(probs)
+  }
+  
+  pznbinom <- function(q, mu, theta, pi) {
+    probs <- numeric(length(q))
+    if(length(pi) == 1) pi <- rep(pi, length(q))
+    if(length(mu) == 1) mu <- rep(mu, length(q))
+    probs[q < 0] <- 0
+    idx <- q >= 0
+    probs[idx] <- pi[idx] + (1 - pi[idx]) * pnbinom(q[idx], size = theta, mu = mu[idx])
+    
+    return(probs)
+  }
+  
+  dzpois <- function(y, lambda, pi) {
+    probs <- numeric(length(y))
+    n <- length(y)
+    probs[y == 0] <- pi[y == 0] + (1 - pi[y == 0]) * exp(-lambda[y == 0])
+    probs[y > 0] <- (1 - pi[y > 0]) * dpois(y[y > 0], lambda[y > 0])
+    return(probs)
+  }
+  
+  pzpois <- function(q, lambda, pi) {
+    probs <- numeric(length(q))
+    probs[q < 0] <- 0
+    idx <- q >= 0
+    probs[idx] <- pi[idx] + (1 - pi[idx]) * ppois(q[idx], lambda[idx])
+    
+    return(probs)
+  }
+  
+  
+   # convert scientific notation to 10^
   changeSciNot <- function(n) {
     output <- format(n, scientific = TRUE) #Transforms the number into scientific notation even if small
     output <- sub("e", "*10^", output) #Replace e with 10^
@@ -623,7 +659,6 @@ server <- (function(input, output, session){
     
   }
   
-  
   ############################################################################################
   # All models 
   ############################################################################################
@@ -635,7 +670,6 @@ server <- (function(input, output, session){
     mod_type <- globalVars$model_choice
     print(mod_type)
     print(formula)
-     # uvc
     metaExpr({
       "####################################"
        paste("# Fit Model:", ..(mod_type))
@@ -2410,7 +2444,6 @@ server <- (function(input, output, session){
         })
         
         globalVars$Pearson_Residual <- tryCatch({
-
           Pearson_Residual()
 
 
@@ -3362,92 +3395,225 @@ server <- (function(input, output, session){
   
   
   ##########################################################
-  # RQR Plots
+  # RQR Plots HERE1
   ##########################################################
   
   RQRPlot <- metaReactive2({ 
-    
-  req(globalVars$model)
-  dat <- globalVars$dataset
-  model <- globalVars$model
-  mod_type <- globalVars$model_choice
-  
-  if (mod_type == "Zero-Inflated Poisson" || mod_type == "Zero Inflated Negative Binomial"){
-    
-    metaExpr({
-    
-    ggdat <- tibble(r2= resid(model, type = "pearson")^2,
-                    lambdas = fitted(model))
-    
-    pearson.ratio <- sum(ggdat$r2) / df.residual(model)
-    
-    p2 <- ggplot(ggdat) +
-      geom_point(aes(x=lambdas, y=r2)) +
-      geom_hline(yintercept = 1, linetype="dotted", color="red") +
-      geom_smooth(aes(x=lambdas, y=r2), color="black") +
-      theme_bw() +
-      labs(title = paste("Dispersion Ratio =", round(pearson.ratio, 4)), x = bquote(lambdas), y = bquote(r^2))
-    
-    res <- simulateResiduals(model)
-    
-    ggdat <- data.frame(
-      fitted = res$fittedPredictedResponse, 
-      rqr = res$scaledResiduals            
-    )
-    
-    ggdat$rqr_norm <- qnorm(ggdat$rqr)
-    
-    p1 <- ggplot(data = ggdat, aes(x = fitted, y = rqr_norm)) + 
-      geom_hline(yintercept = 0, linetype = "dotted", color = "red") +
-      geom_point(alpha = 0.5) +
-      theme_bw() +
-      labs(title = "Randomized Quantile Residuals", x = "Fitted Values", y = "Residuals")
-    
-    p1 + p2
-    })
-    
-
-  }else {
-    metaExpr({
       
-    "####################################"
-    "# Create Data for PDF of Residuals Plot"
-    "####################################"
-    counts <- model$y
-    lambdas <- fitted(model)
-    rqr <- rep(NA, length(lambdas))
+    req(globalVars$model)
+    dat <- globalVars$dataset
+    model <- globalVars$model
+    model_type <- globalVars$model_choice
     
+   # browser()
     
-    for(i in 1:length(lambdas)){
-      ai <- ppois(counts[i]-1,lambda=lambdas[i])
-      bi <- ppois(counts[i], lambda=lambdas[i])
-      ui <- ai+runif(1)* (bi-ai)
-      ui <- max(min(ui,1-10^(-6)),10^(-6))
-      rqr[i] <- qnorm(ui)
+  
+  
+    if (model_type == "Poisson") {
+      metaExpr({
+
+        counts <- model$y
+        lambdas <- fitted(model)
+        
+        rqr <- rep(NA, length(lambdas))
+        for(i in 1:length(lambdas)){
+          ai <-ppois(counts[i]-1,lambda=lambdas[i])
+          bi <-ppois(counts[i], lambda=lambdas[i])
+          ui <-ai+runif(1)* (bi-ai)
+          ui <-max(min(ui,1-10^(-6)),10^(-6))
+          rqr[i] <-qnorm(ui)
+        }
+        pearson.ratio <-sum(residuals(model, type= "pearson")^2)/model$df.residual
+        
+        p1<-ggplot(data=tibble(lambda=lambdas,e=rqr)) +
+          geom_hline(yintercept=0,linetype="dotted")+
+          geom_point(aes(x=lambda, y=e))+
+          theme_bw()+
+          xlab(bquote(lambda))+
+          ylab("RandomizedQuantileResiduals")
+        p2<-ggplot(data=tibble(e=rqr)) +
+          stat_qq(aes(sample=e)) +
+          stat_qq_line(aes(sample=e))+
+          theme_bw()+
+          xlab("Theoretical")+
+          ylab("Observed")+
+          ggtitle(paste("DispersionRatio=",round(pearson.ratio,4)))
+        p1+p2
+      })
+    }else if (model_type == "Negative Binomial") {
+        metaExpr({
+      
+          counts <- model$y
+          mus<- predict(model,type= "response")
+          rqr<- rep(NA, length(mus))
+          theta <- model$theta
+          for(i in 1:length(mus)){
+            ai <-pnbinom(counts[i]-1,size= theta, mu= mus[i])
+            
+            bi <-pnbinom(counts[i],size= theta,mu= mus[i])
+            ui <-ai+runif(1)* (bi-ai)
+            ui <-max(min(ui,1-10^(-6)),10^(-6))
+            rqr[i] <-qnorm(ui)
+          }
+          pearson.ratio <-sum(residuals(model,type= "pearson")^2) /model$df.residual
+          
+          p1<-ggplot(data=tibble(mu=mus, e=rqr)) +
+            geom_hline(yintercept=0,linetype="dotted")+
+            geom_point(aes(x=mu,y=e))+
+            theme_bw()+
+            xlab(bquote(mu[y|x]))+
+            ylab("Randomized QuantileResiduals")
+          p2<-ggplot(data=tibble(e=rqr)) +
+            stat_qq(aes(sample=e)) +
+            stat_qq_line(aes(sample=e))+
+            theme_bw()+
+            xlab("Theoretical")+
+            ylab("Observed")+
+            ggtitle(paste("DispersionRatio=",round(pearson.ratio,4)))
+          p1+p2
+        })
+    }else if (model_type == "Quasi-Poisson") {
+      metaExpr({
+        
+        ggdat <- tibble(r2= resid(model, type = "pearson")^2,
+                        lambdas = fitted(model))
+        
+        
+        
+        
+        pearson.ratio <- sum(ggdat$r2) / df.residual(model)
+        
+        p2 <- ggplot(ggdat) +
+          geom_point(aes(x=lambdas, y=r2)) +
+          geom_hline(yintercept = 1, linetype="dotted", color="red") +
+          geom_smooth(aes(x=lambdas, y=r2), color="black") +
+          theme_bw() +
+          labs(title = paste("Dispersion Ratio =", round(pearson.ratio, 4)), x = bquote(lambdas), y = bquote(r^2))
+        
+        res <- simulateResiduals(model)
+        
+        ggdat <- data.frame(
+          fitted = res$fittedPredictedResponse, 
+          rqr = res$scaledResiduals            
+        )
+        
+        ggdat$rqr_norm <- qnorm(ggdat$rqr)
+        
+        p1 <- ggplot(data = ggdat, aes(x = fitted, y = rqr_norm)) + 
+          geom_hline(yintercept = 0, linetype = "dotted", color = "red") +
+          geom_point(alpha = 0.5) +
+          theme_bw() +
+          labs(title = "Randomized Quantile Residuals", x = "Fitted Values", y = "Residuals")
+        
+        p1 + p2
+        
+        
+        
+      })
+    }else if (model_type == "Zero-Inflated Poisson") {
+      
+      counts <- model$y
+      lambdas <- fitted(model, type = "count")
+      pis <- predict(model, type = "zero")
+      rqr <- rep(NA, length(lambdas))
+      for(i in 1:length(lambdas)){
+        ai <- pzpois(counts[i]-1, lambda=lambdas[i], pi=pis[i])
+        bi <- pzpois(counts[i], lambda=lambdas[i], pi=pis[i])
+        # this works even when ai=bi
+        ui <- ai + runif(1) * (bi - ai)
+        ui <- max(min(ui, 1-10^(-6)), 10^(-6))
+        rqr[i] <- qnorm(ui)
+      }
+      
+      pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
+      p1 <- ggplot(data=tibble(lambda=lambdas,
+                               e=rqr)) + 
+        geom_hline(yintercept=0, linetype="dotted")+
+        geom_point(aes(x=lambda, y=e)) +
+        theme_bw()+
+        xlab(bquote(lambda))+
+        ylab("Randomized Quantile Residuals")
+      p2 <- ggplot(data=tibble(e=rqr)) +
+        stat_qq(aes(sample=e)) +
+        stat_qq_line(aes(sample=e)) +
+        theme_bw() +
+        ggtitle(paste("Dispersion Ratio =", round(pearson.ratio, 4)))
+      p1+p2
+       
+        
+    }else if (model_type == "Zero Inflated Negative Binomial") {
+      
+      
+      counts <- model$y
+      mus <- predict(model, type = "count")
+      pis <- predict(model, type = "zero")
+      rqr <- rep(NA, length(mus))
+      for(i in 1:length(mus)){
+        ai <- pznbinom(counts[i]-1, theta=model$theta, 
+                       mu=mus[i], pi=pis[i])
+        bi <- pznbinom(counts[i], theta=model$theta, 
+                       mu=mus[i], pi=pis[i])
+        # this works even when ai=bi
+        ui <- ai + runif(1) * (bi - ai)
+        ui <- max(min(ui, 1-10^(-6)), 10^(-6))
+        rqr[i] <- qnorm(ui)
+      }
+      
+      pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
+      p1 <- ggplot(data=tibble(mu=mus,
+                               e=rqr)) + 
+        geom_hline(yintercept=0, linetype="dotted")+
+        geom_point(aes(x=mu, y=e)) +
+        theme_bw()+
+        xlab(bquote(mu))+
+        ylab("Randomized Quantile Residuals")
+      p2 <- ggplot(data=tibble(e=rqr)) +
+        stat_qq(aes(sample=e)) +
+        stat_qq_line(aes(sample=e)) +
+        theme_bw() +
+        ggtitle(paste("Dispersion Ratio =", round(pearson.ratio, 4)))
+      p1+p2
+      
+        
+    }else{
+      
+      
+      ggdat <- tibble(r2= resid(model, type = "pearson")^2,
+                      lambdas = fitted(model))
+      
+      
+      
+      
+      pearson.ratio <- sum(ggdat$r2) / df.residual(model)
+      
+      p2 <- ggplot(ggdat) +
+        geom_point(aes(x=lambdas, y=r2)) +
+        geom_hline(yintercept = 1, linetype="dotted", color="red") +
+        geom_smooth(aes(x=lambdas, y=r2), color="black") +
+        theme_bw() +
+        labs(title = paste("Dispersion Ratio =", round(pearson.ratio, 4)), x = bquote(lambdas), y = bquote(r^2))
+      
+      res <- simulateResiduals(model)
+      
+      ggdat <- data.frame(
+        fitted = res$fittedPredictedResponse, 
+        rqr = res$scaledResiduals            
+      )
+      
+      ggdat$rqr_norm <- qnorm(ggdat$rqr)
+      
+      p1 <- ggplot(data = ggdat, aes(x = fitted, y = rqr_norm)) + 
+        geom_hline(yintercept = 0, linetype = "dotted", color = "red") +
+        geom_point(alpha = 0.5) +
+        theme_bw() +
+        labs(title = "Randomized Quantile Residuals", x = "Fitted Values", y = "Residuals")
+      
+      p1 + p2
+      
+      
+    
     }
     
-    pearson.ratio <- sum(residuals(model, type= "pearson")^2)/model$df.residual
-    p1 <- ggplot(data=tibble(lambda=lambdas,e=rqr)) +
-      geom_hline(yintercept=0,linetype="dotted")+
-      geom_point(aes(x=lambda, y=e))+
-      theme_bw()+
-      xlab(bquote(lambda))+
-      ylab("RandomizedQuantileResiduals")
-    
-    p2 <- ggplot(data=tibble(e=rqr)) +
-      stat_qq(aes(sample=e)) +
-      stat_qq_line(aes(sample=e))+
-      theme_bw()+
-      xlab("Theoretical")+
-      ylab("Observed")+
-      ggtitle(paste("DispersionRatio=",round(pearson.ratio,4)))
-    
-    p1+p2
-    
-    })
-  }
-  
-
 })
   
 # Render plot to UI
