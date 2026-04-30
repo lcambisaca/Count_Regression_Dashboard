@@ -60,8 +60,6 @@ server <- (function(input, output, session){
   # (NOTE PLOT) 1 Make sure to instantiate plots
   #---------------------------------------------
   
-  globalVars$ZIP_RQRPlot <- NULL
-  globalVars$ZINB_RQRPlot <- NULL
   globalVars$RQRPlot <- NULL
   globalVars$Pearson_Residual <- NULL
   globalVars$ZeroInflated <- NULL
@@ -2195,7 +2193,7 @@ server <- (function(input, output, session){
         model <- tryCatch({
           withCallingHandlers({
             
-          
+        #  browser()
           choice <- globalVars$model_choice
           form <- globalVars$equation
           dat <- globalVars$dataset
@@ -2281,6 +2279,14 @@ server <- (function(input, output, session){
               shinyalert("Warning", text="The Negative Binomial model reached its iteration limit without converging. Please try another regression equation.", type = "warning")   
               invokeRestart("muffleWarning") # MAGIC: This sends R back to finish the model!
               
+            }
+            else if (grepl("non-positive-definite Hessian", x = w, fixed = TRUE)) {
+              shinyalert(
+                "Warning", 
+                text = "The model 'converged' but the results are unstable (Non-positive-definite Hessian). Standard errors and p-values may be missing or incorrect. Try Scaling Data to fix",
+                type = "warning"
+              )
+              invokeRestart("muffleWarning")
             }
           })
           
@@ -2381,6 +2387,7 @@ server <- (function(input, output, session){
         }
         ### Show factor outputs, if necessary
         if(length(fct.vars)>=1){
+          
           globalVars$anova_fctcomp <- prepare_anova_fctcomp()
           globalVars$make_anovafctcomp_plot <- make_anovafctcomp_plot()
           globalVars$make_anovafctcomp_num <- make_anovafctcomp_num()
@@ -3358,7 +3365,8 @@ server <- (function(input, output, session){
   # RQR Plots
   ##########################################################
   
-  RQRPlot <- metaReactive2({ # (NOTE PLOT) 3
+  RQRPlot <- metaReactive2({ 
+    
   req(globalVars$model)
   dat <- globalVars$dataset
   model <- globalVars$model
@@ -3368,26 +3376,27 @@ server <- (function(input, output, session){
     
     metaExpr({
     
-    # Your r^2 vs Lambda implementation
     ggdat <- tibble(r2= resid(model, type = "pearson")^2,
                     lambdas = fitted(model))
+    
+    pearson.ratio <- sum(ggdat$r2) / df.residual(model)
+    
     p2 <- ggplot(ggdat) +
       geom_point(aes(x=lambdas, y=r2)) +
       geom_hline(yintercept = 1, linetype="dotted", color="red") +
       geom_smooth(aes(x=lambdas, y=r2), color="black") +
       theme_bw() +
-      labs(title = "Pearson Residuals", x = bquote(lambdas), y = bquote(r^2))
+      labs(title = paste("Dispersion Ratio =", round(pearson.ratio, 4)), x = bquote(lambdas), y = bquote(r^2))
     
-
     res <- simulateResiduals(model)
+    
     ggdat <- data.frame(
-      fitted = res$fittedPredictedResponse, # This is your 'lambdas'
-      rqr = res$scaledResiduals             # These are your 'rqr' values (0 to 1)
+      fitted = res$fittedPredictedResponse, 
+      rqr = res$scaledResiduals            
     )
     
     ggdat$rqr_norm <- qnorm(ggdat$rqr)
     
-    # 3. Create the Plot
     p1 <- ggplot(data = ggdat, aes(x = fitted, y = rqr_norm)) + 
       geom_hline(yintercept = 0, linetype = "dotted", color = "red") +
       geom_point(alpha = 0.5) +
@@ -3395,7 +3404,6 @@ server <- (function(input, output, session){
       labs(title = "Randomized Quantile Residuals", x = "Fitted Values", y = "Residuals")
     
     p1 + p2
-    
     })
     
 
@@ -3521,9 +3529,7 @@ make_vif_num <- metaReactive2({
   model <- globalVars$model
   choice <- globalVars$model_choice
   dat <- globalVars$dataset
-  #cam_count ~ pnhwht + city | modal_zone
- # browser()
-
+  
   if (choice %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")) {
     term_count <- length(all.vars(formula(model))) - 1 
     count_formula <- formula(model, lhs=1, rhs=1)
@@ -3681,8 +3687,6 @@ make_check_plot <- metaReactive2({
       "####################################"
       "# 3. RQR PLOT"
       "####################################"
-      
-      
       res <- simulateResiduals(model)
       
       ggdat <- data.frame(
@@ -3887,6 +3891,7 @@ make_ggpairs_plot <- metaReactive2({
   req(globalVars$model)
   model<- globalVars$model
   choice <- globalVars$model_choice
+  dat <- globalVars$dataset
   
   metaExpr({
     "####################################"
@@ -3896,23 +3901,16 @@ make_ggpairs_plot <- metaReactive2({
     # problem: can we make discrete a better plot? (mosaic?)
     upper <- list(continuous = "points", discrete = wrap("colbar", size = 0), combo = "box_no_facet", na = "na")
     lower <- list(continuous = "cor", discrete = wrap("colbar", size = 0), combo = "box_no_facet", na = "na")
-    
-    
-    if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
-      ggpairs(model$frame, progress = F, upper = upper, lower = lower) +
-        theme_bw()+
-        theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
-        scale_fill_grey()+
-        scale_color_grey()
       
-    }
-    else{
-      ggpairs(model.frame(model), progress = F, upper = upper, lower = lower) +
+
+    variables <- all.vars(formula(model))
+ 
+    ggpairs(dat[, variables], progress = F, upper = upper, lower = lower) +
         theme_bw()+
         theme(axis.text.x = element_text(angle=60, vjust = 1, hjust=1)) + 
         scale_fill_grey()+
         scale_color_grey()
-    }
+     
   })
 },inline=TRUE)
 
@@ -4318,9 +4316,8 @@ prepare_anova_fctcomp <- metaReactive2({
   dat <- globalVars$dataset
   model <- globalVars$model
   choice <- globalVars$model_choice
-  
 
-  
+
   metaExpr({
     if (choice == "Zero-Inflated Poisson" || choice == "Zero Inflated Negative Binomial" ){
       all_vars <- all.vars(formula(model))
@@ -4333,7 +4330,7 @@ prepare_anova_fctcomp <- metaReactive2({
     anova_fctcomp.table <- NULL
     
     for(fctvar in fct.vars){
-      emm.obj <- emmeans(model, specs = fctvar, regrid = "response")
+      emm.obj <- emmeans(model, specs = fctvar, regrid = "response",data = dat)
       emm.test <- pairs(emm.obj, reverse = TRUE)
       emm.ci <- confint(emm.test)
       emm.df <- data.frame(emm.test)
