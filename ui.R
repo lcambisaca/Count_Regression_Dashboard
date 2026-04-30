@@ -246,7 +246,17 @@ ui <- tagList(
                                                     )
           
                                           
-                                  )
+                                  ),
+                                  tabPanel("Example 3",
+                                           h1("Example 3: Tweedie Model Data"),
+                                           tags$div(class = "paragraph", tags$hr(),
+                                                    p("The Tweedie Model is a type of Generalized Linear Model (GLM) which specializes in data for non-negative data with a mix of zeroes and positive, continuous values."),
+                                                    p("In order to use the Tweedie model, the data should have a non-negative response variable (rainfall, insurance claims, energy usage, flood height, etc.), many zero values, and the variance should follow a power relationship with the mean. Additionally, the data should have mostly small values and occasional large values."),
+                                                    p("Unlike the Zero-Inflated Poisson and Zero-Inflated Negative Binomial models, the zero values are not treated as part of a separate distribution, whereas the Zero-Inflated version draws them from a Logistic model.")
+                                                    )
+                                           
+                                           
+                                           )
                       ) # acts as a contained for multiple tabPanel()
              ),
              tabPanel("Dataset & Model",
