@@ -3405,10 +3405,7 @@ server <- (function(input, output, session){
     model <- globalVars$model
     model_type <- globalVars$model_choice
     
-   # browser()
-    
-  
-  
+
     if (model_type == "Poisson") {
       metaExpr({
 
@@ -3475,47 +3472,42 @@ server <- (function(input, output, session){
     }else if (model_type == "Quasi-Poisson") {
       metaExpr({
         
-        ggdat <- tibble(r2= resid(model, type = "pearson")^2,
-                        lambdas = fitted(model))
+        counts <- model$y
+        lambdas <- fitted(model)
         
+        rqr <- rep(NA, length(lambdas))
+        for(i in 1:length(lambdas)){
+          ai <-ppois(counts[i]-1,lambda=lambdas[i])
+          bi <-ppois(counts[i], lambda=lambdas[i])
+          ui <-ai+runif(1)* (bi-ai)
+          ui <-max(min(ui,1-10^(-6)),10^(-6))
+          rqr[i] <-qnorm(ui)
+        }
+        pearson.ratio <-sum(residuals(model, type= "pearson")^2)/model$df.residual
         
-        
-        
-        pearson.ratio <- sum(ggdat$r2) / df.residual(model)
-        
-        p2 <- ggplot(ggdat) +
-          geom_point(aes(x=lambdas, y=r2)) +
-          geom_hline(yintercept = 1, linetype="dotted", color="red") +
-          geom_smooth(aes(x=lambdas, y=r2), color="black") +
-          theme_bw() +
-          labs(title = paste("Dispersion Ratio =", round(pearson.ratio, 4)), x = bquote(lambdas), y = bquote(r^2))
-        
-        res <- simulateResiduals(model)
-        
-        ggdat <- data.frame(
-          fitted = res$fittedPredictedResponse, 
-          rqr = res$scaledResiduals            
-        )
-        
-        ggdat$rqr_norm <- qnorm(ggdat$rqr)
-        
-        p1 <- ggplot(data = ggdat, aes(x = fitted, y = rqr_norm)) + 
-          geom_hline(yintercept = 0, linetype = "dotted", color = "red") +
-          geom_point(alpha = 0.5) +
-          theme_bw() +
-          labs(title = "Randomized Quantile Residuals", x = "Fitted Values", y = "Residuals")
-        
-        p1 + p2
-        
-        
+        p1<-ggplot(data=tibble(lambda=lambdas,e=rqr)) +
+          geom_hline(yintercept=0,linetype="dotted")+
+          geom_point(aes(x=lambda, y=e))+
+          theme_bw()+
+          xlab(bquote(lambda))+
+          ylab("RandomizedQuantileResiduals")
+        p2<-ggplot(data=tibble(e=rqr)) +
+          stat_qq(aes(sample=e)) +
+          stat_qq_line(aes(sample=e))+
+          theme_bw()+
+          xlab("Theoretical")+
+          ylab("Observed")+
+          ggtitle(paste("DispersionRatio=",round(pearson.ratio,4)))
+        p1+p2
         
       })
     }else if (model_type == "Zero-Inflated Poisson") {
       
-      counts <- model$y
+      counts <-  model$frame[[1]]
       lambdas <- fitted(model, type = "count")
-      pis <- predict(model, type = "zero")
+      pis <- predict(model, type = "zprob")
       rqr <- rep(NA, length(lambdas))
+      
       for(i in 1:length(lambdas)){
         ai <- pzpois(counts[i]-1, lambda=lambdas[i], pi=pis[i])
         bi <- pzpois(counts[i], lambda=lambdas[i], pi=pis[i])
@@ -3525,7 +3517,8 @@ server <- (function(input, output, session){
         rqr[i] <- qnorm(ui)
       }
       
-      pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
+      pearson.ratio <- sum(residuals(model, type = "pearson")^2) / df.residual(model)
+      
       p1 <- ggplot(data=tibble(lambda=lambdas,
                                e=rqr)) + 
         geom_hline(yintercept=0, linetype="dotted")+
@@ -3543,23 +3536,24 @@ server <- (function(input, output, session){
         
     }else if (model_type == "Zero Inflated Negative Binomial") {
       
-      
-      counts <- model$y
-      mus <- predict(model, type = "count")
-      pis <- predict(model, type = "zero")
+     # browser()
+      counts <-  model$frame[[1]]
+      mus <- predict(model, type = "conditional")
+      pis <- predict(model, type = "zprob")
+      theta_val <- sigma(model) # This is your dispersion parameter
       rqr <- rep(NA, length(mus))
+      
       for(i in 1:length(mus)){
-        ai <- pznbinom(counts[i]-1, theta=model$theta, 
+        ai <- pznbinom(counts[i]-1, theta=theta_val, 
                        mu=mus[i], pi=pis[i])
-        bi <- pznbinom(counts[i], theta=model$theta, 
+        bi <- pznbinom(counts[i], theta=theta_val, 
                        mu=mus[i], pi=pis[i])
-        # this works even when ai=bi
         ui <- ai + runif(1) * (bi - ai)
         ui <- max(min(ui, 1-10^(-6)), 10^(-6))
         rqr[i] <- qnorm(ui)
       }
       
-      pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
+      pearson.ratio <- sum(residuals(model, type = "pearson")^2) / df.residual(model)
       p1 <- ggplot(data=tibble(mu=mus,
                                e=rqr)) + 
         geom_hline(yintercept=0, linetype="dotted")+
@@ -3575,42 +3569,10 @@ server <- (function(input, output, session){
       p1+p2
       
         
-    }else{
+    }else if (model_type == "Tweedie") {
       
-      
-      ggdat <- tibble(r2= resid(model, type = "pearson")^2,
-                      lambdas = fitted(model))
-      
-      
-      
-      
-      pearson.ratio <- sum(ggdat$r2) / df.residual(model)
-      
-      p2 <- ggplot(ggdat) +
-        geom_point(aes(x=lambdas, y=r2)) +
-        geom_hline(yintercept = 1, linetype="dotted", color="red") +
-        geom_smooth(aes(x=lambdas, y=r2), color="black") +
-        theme_bw() +
-        labs(title = paste("Dispersion Ratio =", round(pearson.ratio, 4)), x = bquote(lambdas), y = bquote(r^2))
-      
-      res <- simulateResiduals(model)
-      
-      ggdat <- data.frame(
-        fitted = res$fittedPredictedResponse, 
-        rqr = res$scaledResiduals            
-      )
-      
-      ggdat$rqr_norm <- qnorm(ggdat$rqr)
-      
-      p1 <- ggplot(data = ggdat, aes(x = fitted, y = rqr_norm)) + 
-        geom_hline(yintercept = 0, linetype = "dotted", color = "red") +
-        geom_point(alpha = 0.5) +
-        theme_bw() +
-        labs(title = "Randomized Quantile Residuals", x = "Fitted Values", y = "Residuals")
-      
-      p1 + p2
-      
-      
+       
+ 
     
     }
     
