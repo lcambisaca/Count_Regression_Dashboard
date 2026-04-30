@@ -3881,6 +3881,42 @@ observeEvent(input$check_obs, {
   
 })
 
+############################################################################
+# HANDLE CHECKING FOR ASS.
+############################################################################
+observeEvent(input$check_asmp, {
+  shinyjs::show("asmp_note")
+  
+  if(input$asmp_1 == FALSE){
+    discuss_text <- "The collected data needs to be representative of the population of interest and the observations must be independent of one another. Inferences may not properly reflect the population. Please consider finding a new dataset.\n"
+    output$asmp_note <- renderText(discuss_text)
+  } else if (input$asmp_6 == FALSE){
+    discuss_text <- "The model does not appear to be well fitting of your data. Please try selecting another model instead.\n"
+    output$asmp_note <- renderText(discuss_text)
+  } else if (input$asmp_2 == FALSE){
+    discuss_text <- "The collected data shows evidence of (multi)collinearity. Please reevaluate your regression equation and eliminate any redundancies before proceeding.\n"
+    output$asmp_note <- renderText(discuss_text)
+  } else if (input$asmp_3 == FALSE){
+    discuss_text <- "There may be insufficiently many events for each predictor, which may lead to issues in reliability. Please consider bootstrapping, resampling, or finding an alternative data set.\n"
+    output$asmp_note <- renderText(discuss_text)
+  } else if (input$asmp_4 == FALSE){
+    discuss_text <- "There may be an issue with the polynomial order of your regression model. Please consider adding a squared term.\n"
+    output$asmp_note <- renderText(discuss_text)
+  } else if (input$asmp_5A == FALSE && input$model_choice %in% c("Poisson", "Negative Binomial")){
+    discuss_text <- "The model appears to suffer from zero-inflation. It is recommended that you switch to one of the zero-inflated models instead.\n"
+    output$asmp_note <- renderText(discuss_text)
+  } else if (input$asmp_5B == FALSE && input$model_choice %in% c("Zero-Inflated Poisson", "Zero Inflated Negative Binomial")){
+    discuss_text <- "The model does not appear to have a mixed process for generating zeros and counts. More specifically, the structural zeros may not be logistic. Please try refitting the model with a standard model instead of a zero-inflated model."
+    output$asmp_note <- renderText(discuss_text)
+  } else{
+    discuss_text <- "All conditions for use of this model have been met. Please proceed to the next step."
+    output$asmp_note <- renderText(discuss_text)
+  }
+  
+  
+  
+})
+
 
 
 #############################################################################################
