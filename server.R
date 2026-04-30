@@ -2109,70 +2109,64 @@ server <- (function(input, output, session){
   # Check Equation Input
   ########################################
   
-  checkEquationValidity <- function(){
-    
-    run <- TRUE
-    dat <- globalVars$dataset
-    
-    browser()
-    
-    
-    
-    if (run & grepl("~", input$equation)) {
-      # Genius IDEA
-      subbed <- str_replace_all(input$equation,fixed("+"),"~")
-      subbed <- str_replace_all(subbed,fixed("*"),"~")
-      subbed <- str_replace_all(subbed,fixed(":"),"~")
-      subbed <- str_replace_all(subbed,fixed("|"),"~")
+    checkEquationValidity <- function() {
+      run <- TRUE
+      dat <- globalVars$dataset
       
-      # Note will have to fix minor things cry
+      # 1. Syntax Check
+      if (!grepl("~", input$equation)) {
+        shinyalert("Error!", text = "Your regression equation must contain a '~'.", type = "error")
+        return(FALSE) # Exit immediately
+      }
       
-      while(grepl("[a-zA-Z0-9._]+\\(", subbed)) { 
-        # 1. Remove the function name and the opening '('
-        # 2. Remove the matching ')' and any trailing power like '^2'
-        subbed <- gsub("[a-zA-Z0-9._]+\\(([^)]+)\\)(\\^\\d+)?", "\\1", subbed, perl = TRUE)
-      } #Will not work for complex function like poly(x,2) or  I((a + b) * c)
-      
-      
-      
-      variables <- trimws(str_split(string = subbed, pattern = "~", simplify = T))
-      
-      if(length(variables)>=2 && variables[2]!=""){
-        globalVars$response <- variables[1] # We had response var this whole time
+      # 2. Variable/Logic Check
+      # We wrap the whole thing in tryCatch and assign the result to 'run'
+      run <- tryCatch({
+        f <- as.formula(input$equation)
+        variables <- all.vars(f)
         
-        globalVars$equation <- input$equation
-        
-        #Check for misspellings 
-        if(!all(variables %in% colnames(globalVars$dataset))){
-          run <- FALSE
-          shinyalert("Error!", text = "One of the variables in your equation does not exist in the data set. Please check your equation again for spelling or other errors.", type = "error")          
-          # check for correct response
-        }else if(!(is.numeric(globalVars$dataset[[variables[,1]]]))){
-          run <- FALSE
-          shinyalert("Error!", text = "Please make sure to choose a numeric response variable.", type = "error")
-          # check for bad categorical variables
-        }else{
-          # Check for too many levels on explanatory variables
-          for (i in 2:length(variables)){
-            if(!is.numeric(globalVars$dataset[[variables[i]]])){
-              if (length(unique(as.character(globalVars$dataset[[variables[i]]]))) > 12){
-                shinyalert("Error!", text = "One of your categorical predictor variables has more than the maximum supported number of unique levels (12). Please check that the predictor is indeed categorical or adjust your regression equation.", type = "error")
-                run <- FALSE
-                break
+        if (length(variables) >= 2 && variables[2] != "") {
+          globalVars$response <- variables[1] 
+          globalVars$equation <- input$equation
+          
+          # Check misspellings
+          if (!all(variables %in% colnames(dat))) {
+            shinyalert("Error!", text = "Variable does not exist in data set.", type = "error")
+            return(FALSE) 
+            
+            # Check Numeric Response
+          } else if (!is.numeric(dat[[globalVars$response]])) {
+            shinyalert("Error!", text = "Response variable must be numeric.", type = "error")
+            return(FALSE)
+            
+          } else {
+            # Check Categorical Levels
+            for (i in 2:length(variables)) {
+              var_name <- variables[i]
+              column_data <- dat[[var_name]]
+              if (!is.numeric(column_data)) {
+                if (length(unique(as.character(column_data))) > 12) {
+                  shinyalert("Error!", text = paste0("Variable '", var_name, "' has > 12 levels."), type = "error")
+                  return(FALSE)
+                }
               }
             }
-          } 
+          }
+          return(TRUE) # If we got here, everything is valid
+          
+        } else {
+          shinyalert("Error!", text = "Missing predictors.", type = "error")
+          return(FALSE)
         }
-      }else{
-        run <- FALSE
-        shinyalert("Error!", text="Your regression equation is not correctly specified, please rewrite it.", type = "error")
-      }
-    }else{
-      run <- FALSE
-      shinyalert("Error!", text="Your regression equation is not correctly specified, please rewrite it.", type = "error")
+        
+      }, error = function(e) {
+        # If as.formula() or all.vars() explodes, this triggers
+        shinyalert("Error!", text = "Invalid formula syntax.", type = "error")
+        return(FALSE) 
+      })
+      
+      return(run) # This now returns the result of the tryCatch
     }
-    return(run)
-  }
   
   
   #############################################################################################
