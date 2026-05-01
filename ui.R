@@ -676,7 +676,53 @@ ui <- tagList(
                       )
                       
              ),
-             tabPanel("Refrences"
+             tabPanel("Refrences", value = "references",
+                      tags$div(
+                        style = "font-size: 0.9em; color: #333; padding: 20px; border-top: 1px solid #eee; margin-top: 20px;",
+                        tags$h4("Data Sources & References"),
+                        
+                        # Palmer Penguins Citation (Academic Format)
+                        tags$p(style = "padding-left: 2em; text-indent: -2em;",
+                               tags$b("1. Palmer Penguins: "),
+                               "Horst, A. M., Hill, A. P., & Gorman, K. B. (2020). ",
+                               tags$em("palmerpenguins: Palmer Archipelago (Antarctica) penguin data"),
+                               " (Version 0.1.0) [R package]. ",
+                               tags$a(href = "https://doi.org/10.5281/zenodo.3960218", "https://doi.org/10.5281/zenodo.3960218")
+                        ),
+                        
+                        # US News College Data
+                        tags$p(style = "padding-left: 2em; text-indent: -2em;",
+                               tags$b("2. College Data: "),
+                               "James, G., Witten, D., Hastie, T., & Tibshirani, R. (2013). ",
+                               tags$em("An Introduction to Statistical Learning: with Applications in R."),
+                               " Springer. Source: ISLR Package."
+                        ),
+                        
+                        # MEPS Data
+                        tags$p(style = "padding-left: 2em; text-indent: -2em;",
+                               tags$b("3. MEPS Data: "),
+                               "Agency for Healthcare Research and Quality (2025). ",
+                               tags$em("2023 Full Year Consolidated Data File (HC-251)."),
+                               " Medical Expenditure Panel Survey. ",
+                               tags$a(href = "https://meps.ahrq.gov/mepsweb/data_stats/download_data_files_detail.jsp?cboPufNumber=HC-251", "Source Link")
+                        ),
+                        
+                        # Aché Monkey Hunter Data
+                        tags$p(style = "padding-left: 2em; text-indent: -2em;",
+                               tags$b("4. Aché Monkey Hunter Data: "),
+                               "Hill, K., & Hurtado, A. M. (1996). ",
+                               tags$em("Aché Life History: The Ecology and Demography of a Foraging People."),
+                               " Aldine de Gruyter."
+                        ),
+                        
+                        # Kitsberg Nucleus Data
+                        tags$p(style = "padding-left: 2em; text-indent: -2em;",
+                               tags$b("5. Nucleus Data: "),
+                               "Kitsberg, S. (2025). ",
+                               tags$em("Quantitative Analysis of Nucleus Morphometrics and Distribution."),
+                               " Nucleus Data Repository."
+                        )
+                      )
                       
                       
              )
