@@ -156,8 +156,8 @@ ui <- tagList(
                                                     p("Upon pressing 'Compute Model Output', several plots and tables will be created. Upon processing, the app will show the 'Assumptions' tab, which presents a table, a checklist, and two plots."),
                                                     p("For the Poisson model, we can note a few issues. Starting with the table, our Age parameter does not appear to be statistically discernible, with a p-value of 0.116. Secondly, the data appears to have excess zeroes in our RQR Plot. Lastly, according to the Dispersion Ratio of 3.7485, the observed variace is about 3.75 times more than the estimate."),
                                                     tags$hr(),
-                                                    tags$img(src = "/images/ache_poisson_asmp_table.png", height = "125px", width = "550px"),
-                                                    tags$img(src = "/images/ache_poisson_asmp_graph.png", height = "367px", width = "525px")
+                                                    tags$img(src = "/images/ache_poisson_asmp_table.png", height = "150px", width = "600px"),
+                                                    tags$img(src = "/images/ache_poisson_asmp_graph.png", height = "400px", width = "600px")
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
@@ -253,6 +253,10 @@ ui <- tagList(
                                                     p("The Tweedie Model is a type of Generalized Linear Model (GLM) which specializes in data for non-negative data with a mix of zeroes and positive, continuous values."),
                                                     p("In order to use the Tweedie model, the data should have a non-negative response variable (rainfall, insurance claims, energy usage, flood height, etc.), many zero values, and the variance should follow a power relationship with the mean. Additionally, the data should have mostly small values and occasional large values."),
                                                     p("Unlike the Zero-Inflated Poisson and Zero-Inflated Negative Binomial models, the zero values are not treated as part of a separate distribution, whereas the Zero-Inflated version draws them from a Logistic model.")
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("Included in this app is a set of simulated data, aptly named 'Tweedie Simulated Data'. Using the 'tweedie' package implemented in R, 500 values have been simulated using rtweedie()." ),
+                                                    p("First, the data can be loaded by navigating to the 'Dataset & Model' tab and opting for 'Sample Data' with the corresponding button. Then, via the dropdown menu, ensure that 'Tweedie Simulated Data' is selected." )
                                                     )
                                            
                                            
@@ -266,7 +270,7 @@ ui <- tagList(
                         actionButton("sample", "Sample Data"),
                         hidden(div(id='choose_sample', #div is a box
                                    selectInput("sample_data_choice","Sample Data:",
-                                               choices = c("Camera Data", "Palmer Penguins", "Kitsberg et al. Nucleus" ,"U.S. News College Data", "Ache Monkey"),
+                                               choices = c("Camera Data", "Palmer Penguins", "Kitsberg et al. Nucleus" ,"U.S. News College Data", "Ache Monkey", "Tweedie Simulated Data"),
                                                selected = "U.S. News College Data"))),
                         tags$hr(), #shaw shaw
                         div(id='choose_model',

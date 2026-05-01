@@ -146,7 +146,8 @@ server <- (function(input, output, session){
                             input$sample_data_choice=="Palmer Penguins"                                 ~ "PalmerPenguin",
                             input$sample_data_choice=="U.S. News College Data"                          ~ "College",
                             input$sample_data_choice=="Camera Data"                                     ~ "cs_replication_data",
-                            input$sample_data_choice=="Ache Monkey"                                     ~ "Ache Monkey"
+                            input$sample_data_choice=="Ache Monkey"                                     ~ "Ache Monkey",
+                            input$sample_data_choice=="Tweedie Simulated Data"                          ~ "tweedie_regression_data"
       )
       
       DT::datatable(
@@ -192,7 +193,7 @@ server <- (function(input, output, session){
       if(input$sample_data_choice=="Kitsberg et al. Nucleus"){
         metaExpr({
           "# You can download the data on the Data Preview page"
-          dat<-read_csv("Kitsberg25-nucleus.csv")
+          dat<-read_csv("www/Kitsberg25-nucleus.csv")
         })
       }else if(input$sample_data_choice=="Palmer Penguins"){
         metaExpr({
@@ -208,11 +209,15 @@ server <- (function(input, output, session){
         })
       }else if(input$sample_data_choice=="Camera Data"){
         metaExpr({
-          dat<-read_csv("cs_replication_data.csv")
+          dat<-read_csv("www/cs_replication_data.csv")
         })
       }else if(input$sample_data_choice=="Ache Monkey"){
         metaExpr({
-          dat<-read_csv("McMillanAcheMonkey.csv")
+          dat<-read_csv("www/McMillanAcheMonkey.csv")
+        })
+      } else if (input$sample_data_choice=="Tweedie Simulated Data"){
+        metaExpr({
+          dat<-read_csv("www/tweedie_regression_data.csv")
         })
       }
       
@@ -415,6 +420,10 @@ server <- (function(input, output, session){
         dat<- College
       }else if(input$sample_data_choice=="Camera Data"){
         dat<-read.csv("www/cs_replication_data.csv")
+      }else if (input$sample_data_choice=="Ache Monkey"){
+        dat<-read.csv("www/McMillanAcheMonkey.")
+      }else if (input$sample_data_choice=="Tweedie Simulated Data"){
+        dat<-read.csv("www/tweedie_regression_data.csv")
       }
       # basic data fix stuff
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
@@ -2044,7 +2053,9 @@ server <- (function(input, output, session){
         dat<-read.csv("www/cs_replication_data.csv")
       }
       else if(input$sample_data_choice=="Ache Monkey" ){
-        dat<-read.csv("www/McMillanAcheMonkey.csv")
+        dat<-read_csv("www/McMillanAcheMonkey.csv")
+      }else if(input$sample_data_choice=="Tweedie Simulated Data"){
+        dat<-read.csv("www/tweedie_regression_data.csv")
       }
       shinyjs::show("select_factors")
       globalVars$dataset <- dat %>% mutate_if(is.character,as.factor)%>%
@@ -2199,6 +2210,11 @@ server <- (function(input, output, session){
   # When a new sample selected
   #############################################################################################
   observeEvent(input$DoCompute,{
+    #Handles Edge case in which user stats on the Poisson Model. A lot of other stuff was built on Poisson being default supposedly. In any other case, this does nothing and it works as normal.
+    if(globalVars$model_choice == "Poisson"){
+      shinyjs::show("asmp_5A")
+      shinyjs::hide("asmp_5B")
+    }
     if(is.null(globalVars$dataset)){
       shinyalert("Error!", text = "Please choose a dataset.", type = "error")
     }
@@ -2848,10 +2864,11 @@ server <- (function(input, output, session){
         ").<br/>",
         
         "\U2022 The McFadden's Pseudo R-squared is ", round(mcfadden_r2, 4),
-        ". This represents the proportion of total deviance explained by the predictors.<br/>",
+        ". This represents the proportion of total deviance explained by the predictors. For different datasets and within different contexts, the threshold for what is considered 'good'
+      is subject to change. In general, if the value is higher than the odds of randomly guessing, then the model can be considered strong.<br/>",
         
         "\U2022 The Log-Likelihood is ", round(ll_full, 4),
-        ". This value measures how well the model supports the observed data.<br/>",
+        ". This value measures how well the model supports the observed data. The higher this value, the better the model is for the data. This is best used for comparing one model to another.<br/>",
         sep=""
       )
       
@@ -2897,10 +2914,12 @@ server <- (function(input, output, session){
           effect.value <- mod.table$Estimate[i]
           z.value <- round(mod.table$z[i], 4)
           pval <- round(mod.table$`p-value`[i],4)
+          pval_num <- round(mod.table$`p-value`[i],4)
           pval <- ifelse(pval<0.0001, " < 0.0001", paste(" =", round(pval, 4)))
+          
           sig.text <- ifelse(pval > input$alpha, 
-                             paste(". This effect did not reach statistical significance", " (z = ", round(mod.table$z[i], 4), " p", pval,").", sep=""),
-                             paste(" (z=", round(mod.table$z[i], 4), " p", pval,").", sep=""))
+                             paste(". This effect did not reach statistical significance", " (z = ", round(mod.table$z[i], 4), ", p", pval,").", sep=""),
+                             paste(" (z=", round(mod.table$z[i], 4), ", p", pval,").", sep=""))
           
           if(curr.row %in% numeric.vars){ # numeric
             if(endsWith(curr.row, ".scaled")){
@@ -2912,12 +2931,12 @@ server <- (function(input, output, session){
               unit2 <- ""
             }
             if (mod.table$`Model Part`[i] == "Count Model"){
-              adding.text <- paste("\U2022 COUNT SIDE AHHH For TOMM FIXX every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
-                                     "in ", sub("\\.scaled$", "", names(model.frame(model))[1]), ", on average.", sig.text, "\n", sep="")
+              adding.text <- paste("\U2022 For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , " unit", unit2, ifelse(effect.value<0, " decrease ", " increase "),
+                                     "in ", sub("\\.scaled$", "", names(model.frame(model))[1]), ", on average.", sig.text, " This term is considered ", ifelse(pval_num < alpha, "statistically discernible.", "not statistically significant.") , "\n", sep="")
             }
             else{
-                adding.text <- paste("\U2022 ZERO SIDE TOM FIXXX SIDE AHHH For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , unit2, ifelse(effect.value<0, " decrease ", " increase "),
-                                     "in ", sub("\\.scaled$", "", names(model.frame(model))[1]), ", on average.", sig.text, "\n", sep="")
+                adding.text <- paste("\U2022 For every ", unit," increase in ", curr.row, ", we expect a ", round(abs(effect.value),4) , " unit", unit2, ifelse(effect.value<0, " decrease ", " increase "),
+                                     "in ", sub("\\.scaled$", "", names(model.frame(model))[1]), ", on average.", sig.text, " This term is considered ", ifelse(pval_num < alpha, "statistically discernible.", "not statistically significant.") , "\n", sep="")
               
             }
             
