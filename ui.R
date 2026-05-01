@@ -192,7 +192,7 @@ ui <- tagList(
                                                     tags$img(src = "/images/ache_zip_anova_output.png", height = "315px", width = "600px"),
                                                     p("That said, in our interpretations, our output table shows that Age is still not considered statistically discernible, whereas days is. As such, in this model, Days is a discernible indicator for number of kills."),
                                                     tags$hr(),
-                                                    tags$img(src = "/images/ache_poisson_error_check.gif", height = "300px", width = "300px")
+                                                    #tags$img(src = "/images/ache_poisson_error_check.gif", height = "300px", width = "300px")
                                            )
                                            
                                            
@@ -680,7 +680,7 @@ ui <- tagList(
              tabPanel("Refrences", value = "references",
                       tags$div(
                         style = "font-size: 0.9em; color: #333; padding: 20px; border-top: 1px solid #eee; margin-top: 20px;",
-                        tags$h4("Data Sources & References"),
+                        tags$h1("Data Sources & References"),
                         
                         # Palmer Penguins Citation (Academic Format)
                         tags$p(style = "padding-left: 2em; text-indent: -2em;",
