@@ -3590,28 +3590,29 @@ server <- (function(input, output, session){
         
     }else if (model_type == "Tweedie") {
       #browser()
-      res <- statmod::qres.tweedie(model)
-      df  <- data.frame(res = res)
-      
-      # p1: Q-Q Plot to check for normality of residuals
-      p1 <- ggplot(df, aes(sample = res)) +
-        stat_qq() +
-        stat_qq_line(color = "red") +
-        labs(title = "Tweedie RQR Q-Q Plot",
-             x = "Theoretical Quantiles",
-             y = "Sample Quantiles") +
-        theme_minimal()
-      
-      # p2: Histogram to check residual distribution
-      p2 <- ggplot(df, aes(x = res)) +
-        geom_histogram(bins = 30, fill = "steelblue", color = "white") +
-        labs(title = "Tweedie RQR Distribution",
-             x = "Randomized Quantile Residuals",
-             y = "Frequency") +
-        theme_minimal()
-      
-      # Combine plots using patchwork syntax
-      p1 + p2
+      metaExpr({
+        rqr <- statmod::qres.tweedie(model)
+        fitted_vals <- fitted(model)
+        
+        pearson.ratio <- sum(residuals(model, type = "pearson")^2) / model$df.residual
+        
+        p1 <- ggplot(data = tibble(fitted = fitted_vals, e = rqr)) +
+          geom_hline(yintercept = 0, linetype = "dotted") +
+          geom_point(aes(x = fitted, y = e), alpha = 0.5) +
+          theme_bw() +
+          xlab("Fitted Values") +
+          ylab("Randomized Quantile Residuals")
+        
+        p2 <- ggplot(data = tibble(e = rqr)) +
+          stat_qq(aes(sample = e)) +
+          stat_qq_line(aes(sample = e)) +
+          theme_bw() +
+          xlab("Theoretical") +
+          ylab("Observed") +
+          ggtitle(paste("Dispersion Ratio =", round(pearson.ratio, 4)))
+        
+        p1 + p2
+      })
     }
     
 })

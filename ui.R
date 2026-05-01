@@ -156,17 +156,17 @@ ui <- tagList(
                                                     p("Upon pressing 'Compute Model Output', several plots and tables will be created. Upon processing, the app will show the 'Assumptions' tab, which presents a table, a checklist, and two plots."),
                                                     p("For the Poisson model, we can note a few issues. Starting with the table, our Age parameter does not appear to be statistically discernible, with a p-value of 0.116. Secondly, the data appears to have excess zeroes in our RQR Plot. Lastly, according to the Dispersion Ratio of 3.7485, the observed variace is about 3.75 times more than the estimate."),
                                                     tags$hr(),
-                                                    tags$img(src = "/images/ache_poisson_asmp_table.png", height = "150px", width = "600px"),
-                                                    tags$img(src = "/images/ache_poisson_asmp_graph.png", height = "400px", width = "600px")
+                                                    tags$img(src = "/images/ache_poisson_asmp_table.png", height = "166px", width = "600px"),
+                                                    tags$img(src = "/images/ache_poisson_asmp_graph.png", height = "351px", width = "600px")
                                            ),
                                            
                                            tags$div(class = "paragraph",  tags$hr(),
                                                     p("Furthermore, by navigating to the 'Outliers' tab, the graphs show that there are several points that may be influencing the regression overall."),
                                                     tags$hr(),
-                                                    tags$img(src = "/images/ache_poisson_outliers_graph.png", height = "728px", width = "658px"),
+                                                    tags$img(src = "/images/ache_poisson_outliers_graph.png", height = "542px", width = "600px"),
                                                     tags$hr(),
                                                     p("Lastly, within the 'Plots' tab, there is a graph assessing zero inflation within the data, as shown below"),
-                                                    tags$img(src = "/images/ache_poisson_zinf_graph.png", height = "164px", width = "453px"),
+                                                    tags$img(src = "/images/ache_poisson_zinf_graph.png", height = "513px", width = "600px"),
                                                     p("If the data has little to no zero-inflation, then the vertical red line should appear roughly centered in the histogram. However, in the case of the Ache Monkey Hunter data, this is not the case, indicating that the data likely suffers from zero inflation."),
                                                     p("Based on the earlier assumptions, it is a good idea to fit a Zero Inflated model instead. For the purposes of this example, the selected model will be changed to a 'Zero-Inflated Poisson' model.")
                                            ),
@@ -182,13 +182,13 @@ ui <- tagList(
                                            ),
                                            
                                            tags$div(class = "paragraph",
-                                                    tags$img(src = "/images/ache_zip_asmp_table.png", height = "300px", width = "660px"),
+                                                    tags$img(src = "/images/ache_zip_asmp_table.png", height = "271px", width = "600px"),
                                                     p("In the zero-inflated poisson model, there is now a second intercept value that serves as the logistic regression. This helps us account for the 'zero inflation', for lack of a better term. However, we can see that Age does not seem to be an important parameter."),
                                                     tags$hr(),
-                                                    tags$img(src = "/images/ache_zip_asmp_graph.png", height = "600px", width = "700px"),
+                                                    tags$img(src = "/images/ache_zip_asmp_graph.png", height = "513px", width = "600px"),
                                                     p("Our dataset still has many fitted values around 0, but the residuals are generally OK. Thus, the next tab to check is the ANOVA tab."),
                                                     tags$hr(),
-                                                    tags$img(src = "/images/ache_zip_anova_output.png", height = "300px", width = "570px"),
+                                                    tags$img(src = "/images/ache_zip_anova_output.png", height = "315px", width = "600px"),
                                                     p("That said, in our interpretations, our output table shows that Age is still not considered statistically discernible, whereas days is. As such, in this model, Days is a discernible indicator for number of kills."),
                                                     tags$hr(),
                                                     tags$img(src = "/images/ache_poisson_error_check.gif", height = "300px", width = "300px")
@@ -214,11 +214,11 @@ ui <- tagList(
                                                     ),
                                            tags$div(class = "paragraph",
                                                     p("From here, the plots can now be analyzed. The first plot is the RQR and QQ plots in the 'Assumptions' tab."),
-                                                    tags$img(src = "/images/kitsberg_nb_asmp_graph.png", height = "321px", width = "542px"),
+                                                    tags$img(src = "/images/kitsberg_nb_asmp_graph.png", height = "355px", width = "600px"),
                                                     p("The RQR doesn't indicate any uneven or imbalanced distribution of our residuals. Furthermore, the QQ plot indicates that a Negative Binomial is fitting, as the dispersion ratio suggests that the observed and estimated variances are very near one another."),
                                                     p("Meanwhile, our table suggests _______________ (NOTE: ADD TABLE ONCE COLLISION IS RESOLVED)"),
                                                     p("On the 'Plots' tab, unlike 'Example 1', there is little to no zero inflation in this data. As such, it is permissible to proceed without a zero-inflated model."),
-                                                    tags$img(src = "/images/kitsberg_nb_zinf_graph.png", height = "332px", width = "551px"),
+                                                    tags$img(src = "/images/kitsberg_nb_zinf_graph.png", height = "361px", width = "600px"),
                                                     p("Thus, the next step is to tune the interaction analysis. In the sidebar panel, there is a new section that appeared after 'Compute Model Output' was pressed. For this example, the selected interaction is 'SampleType:CellType' and the selected moderator is 'SampleType'."),
                                                     p("From here, the 'Interaction' tab becomes visible. By navigating to this tab, various information about the interaction term and its significance can be displayed."),
                                                     tags$hr()
@@ -226,22 +226,22 @@ ui <- tagList(
                                                     ),
                                            tags$div(class = "paragraph",
                                                     p("First, a visualization by group is displayed. For this dataset, the two categories within 'SampleType' are separated, as shown below."),
-                                                    tags$img(src = "/images/kitsberg_nb_interaction_graph.png", height = "390px", width="558px"),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_graph.png", height = "419px", width="600px"),
                                                     p("Based on this graph, both cell types seem to be fairly even, but mac samples tend to have higher predicted viruses within the nucleus than those of mono samples. By scrolling down, more information is provided about the estimated marginal means."),
-                                                    tags$img(src = "/images/kitsberg_nb_interaction_emmeans_table.png", height = "337px", width = "583px"),
-                                                    tags$img(src = "/images/kitsberg_nb_interaction_emmeans_interpretation.png", height = "277px", width = "565px"),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_emmeans_table.png", height = "346px", width = "600px"),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_emmeans_interpretation.png", height = "294px", width = "600px"),
                                                     p("Both the values and the significance interpration is presented as part of the interaction tab. From this, the differences between the levels or categories can be numerically visualized."),
                                                     p("For this app, it should be noted that values are calculated at average levels for the other non-interaction terms in the model. While this can be remedied and calculated at specific levels in R, it is not supported in this app at this time."),
                                                     p("Further down, there is also contrasted estimated marginal means with a Tukey Adjustment"),
-                                                    tags$img(src = "/images/kitsberg_nb_interaction_contrast_table.png", height = "505px", width = "571px"),
-                                                    tags$img(src = "/images/kitsberg_nb_interaction_contrast_interpretation.png", height = "266px", width = "575px"),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_contrast_table.png", height = "531px", width = "600px"),
+                                                    tags$img(src = "/images/kitsberg_nb_interaction_contrast_interpretation.png", height = "298px", width = "600px"),
                                                     p("From these, it can be determined which groups have a statistically discernible difference from one another, and which groups are relatively similar to one another as well. In this instance, the report shows that mac primary and mono primary are different from one another, while mono primary and mono THP1 are not."),
                                                     p("By analyzing these, it is possible to group the pairs; the resulting groups would be divided by Mac and Mono in this instance."),
                                                     tags$hr()
                                                     ),
                                            tags$div(class = "paragraph",
                                                     p("Lastly, turning to the 'ANOVA' tab, the table shows the p-values, deviance, and partial McFadden's R. Additionally, there are more interpretations below."),
-                                                    tags$img(src = "/images/kitsberg_nb_anova_table.png", height = "360px",  width = "686px"),
+                                                    tags$img(src = "/images/kitsberg_nb_anova_table.png", height = "315px",  width = "600px"),
                                                     p("The table and interpretations indicate that the only statistically discernible term is the Cell Type, which lines up with the findings from the Interaction tab.")
                                                     )
           
@@ -256,8 +256,69 @@ ui <- tagList(
                                                     ),
                                            tags$div(class = "paragraph",
                                                     p("Included in this app is a set of simulated data, aptly named 'Tweedie Simulated Data'. Using the 'tweedie' package implemented in R, 500 values have been simulated using rtweedie()." ),
-                                                    p("First, the data can be loaded by navigating to the 'Dataset & Model' tab and opting for 'Sample Data' with the corresponding button. Then, via the dropdown menu, ensure that 'Tweedie Simulated Data' is selected." )
+                                                    p("First, the data can be loaded by navigating to the 'Dataset & Model' tab and opting for 'Sample Data' with the corresponding button. Then, via the dropdown menu, ensure that 'Tweedie Simulated Data' is selected."),
+                                                    p("Unlike the other provided sample datasets, the variables have been simplified to easily identify the response and predictor variables. As such, the recommended regression equation is as follows:"),
+                                                    wellPanel(strong("y ~ x1 + x2")),
+                                                    tags$hr()
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("As is the case with the other models, the 'Assumptions' tab contains a QQ and a Randomized Quantile Residuals plot."),
+                                                    tags$img(src = "/images/simulated_tweedie_valid_asmp_graph.png", height = "328px", width = "600px"),
+                                                    p("The residuals appear to be randomly and evenly distributed around 0, and the QQ plot suggests that the Tweedie model fits the data. This is reasonable, as the data is simulated from the Tweedie distribution directly."),
+                                                    p("Due to the randomization algorithm used to simulate the data, the dispersion ratio is somewhat high. That said, overall, the model is well fitting of the data and we satisfy all of our necessary assumptions. Next, the model needs to be assessed for outliers.")
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    tags$hr(),
+                                                    p("Next, by navigating to the 'Outliers' tab, there are several plots that detail any data points that are outliers and their leverage over the regression model."),
+                                                    tags$img(src = "/images/simulated_tweedie_valid_outliers_graph.png", height = "500px", width = "600px"),
+                                                    p("Although there are a few points that are outliers within the dataset, according to both DFFITs and Cook's Distance, there are no points that would have strong leverage over the model. Thus, the outlier checkboxes can be marked off and we may progress to the next tab.")
+                                                    ),
+                                           tags$div(class = "paragraph", tags$hr(),
+                                                    p("The next tab to view is the 'Plots' tab. The RQR plot and QQ plot from the assumptions tab is reprinted here as well. However, more importantly, by scrolling down, the zero-inflation plot can be viewed."),
+                                                    tags$img(src = "/images/simulated_tweedie_valid_zinf_graph.png", height = "322px", width = "600px"),
+                                                    p("Although the data isn't perfectly centered around the red line, it does not appear to suffer from egregious zero-inflation. Tweedie models tend to have more zeros as well, so this is within the realm of reason, indicating that the model should still be well fitting."),
+                                                    p("Lastly, navigating to the 'Interpretations' tab will display generalized conclusions and analysis of the model.")
+                                                    ),
+                                           tags$div(class = "paragraph", tags$hr(),
+                                                    p("Within the 'Interpretation' tab, there is a table and several explanatory sentences for each variable."),
+                                                    tags$img(src = "/images/simulated_tweedie_valid_interpretation_all.png", height = "414px", width = "600px"),
+                                                    p("According to these, both x1 and x2 have a discernible effect on the response variable y. However, only a small portion of the variance is explained by these two, as shown by the R squared term.")
+                                                    ),
+                                           tags$div(class = "paragraph", tags$hr(),
+                                                    p("This dataset also includes two extra variables, x3 and x4. These are simulated to be slightly problematic under the Tweedie distribution to serve as a comparison to the other variables."),
+                                                    p("Thus, instead of the previous regression equation, the new model can be computed with the following:"),
+                                                    wellPanel(strong("y ~ x3 + x4")),
+                                                    tags$hr()
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("First, navigate to the 'Assumptions' tab. Once again, there is an RQR plot and a QQ plot that can be used to determine the fit of the model."),
+                                                    tags$img(src = "/images/simulated_tweedie_invalid_asmp_graph.png", height = "328px", width = "600px"),
+                                                    p("The RQR plot shows that the residuals are generally still evenly and randomly dispersed around zero, with no clear patterns or funnel shapes. However, compared to the original regression equation, the new model has a higher dispersion ratio and the data points are less well fit along the diagonal."),
+                                                    tags$hr(),
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("As with the previous model, the next tab to view is the 'Outliers' tab."),
+                                                    tags$img(src = "/images/simulated_tweedie_invalid_outlier_graph.png", height = "514px", width = "600px"),
+                                                    p("Unlike the previous model, there are more influential points that could have an effect on the regression model. However, according to DFFITs and Cook's Distance, all of these points have a negligible leverage on the model in the end."),
+                                                    p("Thus, the next tab to navigate to is the 'Plots' tab, so that the zeros can be properly evaluated."),
+                                                    tags$hr()
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("If the zeros are properly placed in the new model, then the red line should intersect the data close to the center."),
+                                                    tags$img(src = "/images/simulated_tweedie_invalid_zinf_graph.png", height = "323px", width = "600px"),
+                                                    p("Unfortunately, unlike the original model, there appears to be more zeros than expected. As such, the data may suffer from zero inflation and may require a zero-inflated model instead of the Tweedie model."),
+                                                    tags$hr()
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("Lastly, there are the interpretations for the new model in the 'Interpretations' tab."),
+                                                    tags$img(src = "/images/simulated_tweedie_invalid_interpretations_all.png", height = "421px", width = "600px"),
+                                                    p("In this model, only the intercept is statistically discernible. The model's R-squared value is 0.00045, which indicates that very little to none of the variance is captured in the model."),
+                                                    tags$hr()
+                                                    ),
+                                           tags$div(class = "paragraph",
+                                                    p("From this, when looking to use a Tweedie model, consider the number of zeros, and whether or not they are structural or exact. If data has too many zeroes for a poisson or negative binomial model, but not enough or incorrect generation for zero-infalted, a Tweedie model may be able to bridge that gap.")
                                                     )
+                                           
                                            
                                            
                                            )
