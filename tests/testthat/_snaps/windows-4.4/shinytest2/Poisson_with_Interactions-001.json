@@ -1,0 +1,143 @@
+{
+  "input": {
+    "DoCompute": 0,
+    "Examples": "Example 1",
+    "Pearson_Residual_Plot_format": "png",
+    "Pearson_Residual_Plot_height": "7",
+    "Pearson_Residual_Plot_units": "in",
+    "Pearson_Residual_Plot_width": "7",
+    "RQR_plot_format": "png",
+    "RQR_plot_height": "7",
+    "RQR_plot_units": "in",
+    "RQR_plot_width": "7",
+    "ZeroInflated_Plot_format": "png",
+    "ZeroInflated_Plot_height": "7",
+    "ZeroInflated_Plot_units": "in",
+    "ZeroInflated_Plot_width": "7",
+    "alpha": 0.05,
+    "anova_fctcomp_plot_format": "png",
+    "anova_fctcomp_plot_height": "7",
+    "anova_fctcomp_plot_units": "in",
+    "anova_fctcomp_plot_width": "7",
+    "asmp_1": false,
+    "asmp_2": false,
+    "asmp_3": false,
+    "asmp_4": false,
+    "asmp_5A": false,
+    "asmp_5B": false,
+    "asmp_6": false,
+    "check_1": false,
+    "check_2": false,
+    "check_3": false,
+    "check_4": false,
+    "check_asmp": 0,
+    "check_obs": 0,
+    "check_plot_format": "png",
+    "check_plot_height": "7",
+    "check_plot_units": "in",
+    "check_plot_width": "7",
+    "code_Pearson_Residual": 0,
+    "code_RQR": 0,
+    "code_ZeroInflated": 0,
+    "code_anova": 0,
+    "code_anova_fctcomp": 0,
+    "code_check": 0,
+    "code_corrmat": 0,
+    "code_ggemmeans": 0,
+    "code_ggpairsplot": 0,
+    "code_interaction_emmeans_contrast": 0,
+    "code_interaction_emmeanstab": 0,
+    "code_interaction_emtrendscontrasttab": 0,
+    "code_interaction_emtrendstab": 0,
+    "code_jn": 0,
+    "code_margins": 0,
+    "code_modsum": 0,
+    "code_vif": 0,
+    "equation": "",
+    "file_upload": null,
+    "ggemmeans_plot_format": "png",
+    "ggemmeans_plot_height": "7",
+    "ggemmeans_plot_units": "in",
+    "ggemmeans_plot_width": "7",
+    "ggpairs_plot_format": "png",
+    "ggpairs_plot_height": "7",
+    "ggpairs_plot_units": "in",
+    "ggpairs_plot_width": "7",
+    "ihstransform": 0,
+    "interaction.error": true,
+    "jn_plot_format": "png",
+    "jn_plot_height": "7",
+    "jn_plot_units": "in",
+    "jn_plot_width": "7",
+    "logplus1transform": 0,
+    "logtransform": 0,
+    "model_choice": "Poisson",
+    "sample": 0,
+    "sample_data_choice": "U.S. News College Data",
+    "scalevars": false,
+    "select_factors": null,
+    "tabs": "Dataset & Model",
+    "var_inter": "None",
+    "var_moderator": "Select...",
+    "workPanel": "data"
+  },
+  "output": {
+    "preview.data": {
+      "x": null,
+      "evals": [
+
+      ],
+      "jsHooks": [
+
+      ],
+      "deps": [
+        {
+          "name": "jquery",
+          "version": "3.6.0",
+          "src": {
+            "href": "jquery-3.6.0"
+          },
+          "meta": null,
+          "script": "jquery-3.6.0.min.js",
+          "stylesheet": null,
+          "head": null,
+          "attachment": null,
+          "all_files": true
+        },
+        {
+          "name": "dt-core",
+          "version": "1.13.6",
+          "src": {
+            "href": "dt-core-1.13.6"
+          },
+          "meta": null,
+          "script": "js/jquery.dataTables.min.js",
+          "stylesheet": [
+            "css/jquery.dataTables.min.css",
+            "css/jquery.dataTables.extra.css"
+          ],
+          "head": null,
+          "attachment": null,
+          "package": null,
+          "all_files": false
+        },
+        {
+          "name": "crosstalk",
+          "version": "1.2.2",
+          "src": {
+            "href": "crosstalk-1.2.2"
+          },
+          "meta": null,
+          "script": "js/crosstalk.min.js",
+          "stylesheet": "css/crosstalk.min.css",
+          "head": null,
+          "attachment": null,
+          "all_files": true
+        }
+      ]
+    }
+  },
+  "export": {
+
+  }
+}
