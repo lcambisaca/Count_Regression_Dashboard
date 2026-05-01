@@ -3570,10 +3570,29 @@ server <- (function(input, output, session){
       
         
     }else if (model_type == "Tweedie") {
+      #browser()
+      res <- statmod::qres.tweedie(model)
+      df  <- data.frame(res = res)
       
-       
- 
-    
+      # p1: Q-Q Plot to check for normality of residuals
+      p1 <- ggplot(df, aes(sample = res)) +
+        stat_qq() +
+        stat_qq_line(color = "red") +
+        labs(title = "Tweedie RQR Q-Q Plot",
+             x = "Theoretical Quantiles",
+             y = "Sample Quantiles") +
+        theme_minimal()
+      
+      # p2: Histogram to check residual distribution
+      p2 <- ggplot(df, aes(x = res)) +
+        geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+        labs(title = "Tweedie RQR Distribution",
+             x = "Randomized Quantile Residuals",
+             y = "Frequency") +
+        theme_minimal()
+      
+      # Combine plots using patchwork syntax
+      p1 + p2
     }
     
 })
