@@ -1,5 +1,7 @@
 # **Count Regression Dashboard**
 
+https://lcambisaca.shinyapps.io/Count_Regression_Dashboard/
+
 Purpose: This dashboard serves as a tool to assist statisticians with Count Regression. By uploading data or utilizing the sample data, a user can get insights into count regression following a variety of models, including (but not limited to) Poisson, Negative Binomial, Tweedie, and Zero-Inflated Variants.
 
 Installation: It is recommended that you download the files associated with this program and unpack them into a single folder enviornment on your local device. R-Studio or other code editor are recommended for use. By running the app or opening it in a browser, the dashboard becomes interactive, allowing the user to take advantage of the tools and programs within.
